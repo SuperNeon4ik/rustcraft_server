@@ -33,13 +33,10 @@ fn main() -> std::io::Result<()> {
 
     let ctrl_c_events = ctrl_channel().unwrap();
 
-    loop {
-        select! {
-            recv(ctrl_c_events) -> _ => {
-                println!("");
-                log!(info, "Server closing...");
-                break;
-            }
+    select! {
+        recv(ctrl_c_events) -> _ => {
+            println!();
+            log!(info, "Server closing...");
         }
     }
 

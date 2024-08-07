@@ -1,3 +1,4 @@
+use core::fmt;
 use std::{fs::{self, OpenOptions}, io::Write, sync::Mutex};
 
 use chrono::Local;
@@ -15,15 +16,17 @@ pub enum LogLevel {
     Debug,
 }
 
-impl LogLevel {
-    pub fn to_string(&self) -> String {
-        match self {
+impl fmt::Display for LogLevel {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let level_str = match self {
             Self::Error => "ERROR",
             Self::Warn => "WARN",
             Self::Info => "INFO",
             Self::Verbose => "VERBOSE",
             Self::Debug => "DEBUG",
-        }.to_owned()
+        };
+
+        write!(f, "{}", level_str)
     }
 }
 
@@ -48,7 +51,7 @@ impl Logger {
 
     pub fn log(&self, level: LogLevel, source: &str, text: &str) {
         let date = Local::now();
-        let formatted_text = format!("[{}] [{}] [{}] {}\n", date.format("%Y-%m-%d %H:%M:%S"), level.to_string(), source, text);
+        let formatted_text = format!("[{}] [{}] [{}] {}\n", date.format("%Y-%m-%d %H:%M:%S"), level, source, text);
 
         if let Some(file) = &self.file {
             let mut file_lock = file.lock().unwrap();
