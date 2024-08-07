@@ -1,11 +1,18 @@
+#[macro_use]
+extern crate lazy_static;
+
+mod server;
+mod utils;
+
 use std::thread;
 
 use crossbeam_channel::{bounded, select, Receiver};
-use logger::Logger;
-use rcserver::MinecraftServer;
+use utils::logger::Logger;
+use server::MinecraftServer;
 
-mod rcserver;
-mod logger;
+lazy_static! {
+    static ref LOGGER: Logger = Logger::new("server.log");
+}
 
 fn ctrl_channel() -> Result<Receiver<()>, ctrlc::Error> {
     let (sender, receiver) = bounded(100);
@@ -17,10 +24,8 @@ fn ctrl_channel() -> Result<Receiver<()>, ctrlc::Error> {
 }
 
 fn main() -> std::io::Result<()> {
-    let logger = Logger::new("Main");
-
-    logger.info(&format!("RustCraft Server starting..."));
-    logger.info(&format!("Ctrl+C to exit"));
+    log!(info, "RustCraft Server starting...");
+    log!(info, "Ctrl+C to exit");
 
     let server = MinecraftServer::new("127.0.0.1:25565");
 
@@ -31,13 +36,15 @@ fn main() -> std::io::Result<()> {
     loop {
         select! {
             recv(ctrl_c_events) -> _ => {
-                drop(logger);
-                print!("");
-                println!("Goodbye!");
+                println!("");
+                log!(info, "Server closing...");
+                log!(info, "");
                 break;
             }
         }
     }
+
+    println!("Goodbye!");
 
     Ok(())
 }

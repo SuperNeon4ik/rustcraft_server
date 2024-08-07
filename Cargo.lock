@@ -218,6 +218,7 @@ dependencies = [
  "crossbeam-channel",
  "ctrlc",
  "hex",
+ "lazy_static",
 ]
 
 [[package]]
