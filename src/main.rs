@@ -11,7 +11,7 @@ use utils::logger::Logger;
 use server::MinecraftServer;
 
 lazy_static! {
-    static ref LOGGER: Logger = Logger::new("server.log");
+    static ref LOGGER: Logger = Logger::new_with_file("server.log");
 }
 
 fn ctrl_channel() -> Result<Receiver<()>, ctrlc::Error> {
@@ -38,7 +38,6 @@ fn main() -> std::io::Result<()> {
             recv(ctrl_c_events) -> _ => {
                 println!("");
                 log!(info, "Server closing...");
-                log!(info, "");
                 break;
             }
         }

@@ -4,7 +4,7 @@ use chrono::Local;
 use colored::Colorize;
 
 pub struct Logger {
-    file: Mutex<fs::File>,
+    file: Option<Mutex<fs::File>>,
 }
 
 pub enum LogLevel {
@@ -28,7 +28,13 @@ impl LogLevel {
 }
 
 impl Logger {
-    pub fn new(log_file: &str) -> Self {
+    pub fn new() -> Self {
+        Logger {
+            file: None
+        }
+    }
+
+    pub fn new_with_file(log_file: &str) -> Self {
         let file = OpenOptions::new()
             .append(true)
             .create(true)
@@ -36,7 +42,7 @@ impl Logger {
             .expect("Unable to open log file");
 
         Logger {
-            file: Mutex::new(file),
+            file: Some(Mutex::new(file)),
         }
     }
 
@@ -44,8 +50,10 @@ impl Logger {
         let date = Local::now();
         let formatted_text = format!("[{}] [{}] [{}] {}\n", date.format("%Y-%m-%d %H:%M:%S"), level.to_string(), source, text);
 
-        let mut file = self.file.lock().unwrap();
-        file.write_all(formatted_text.as_bytes()).expect("Unable to write to log file");
+        if let Some(file) = &self.file {
+            let mut file_lock = file.lock().unwrap();
+            file_lock.write_all(formatted_text.as_bytes()).expect("Unable to write to log file");
+        }
 
         let colored_text = match level {
             LogLevel::Error => formatted_text.red(),
