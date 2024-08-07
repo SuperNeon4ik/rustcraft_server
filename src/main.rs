@@ -1,9 +1,11 @@
 use std::thread;
 
 use crossbeam_channel::{bounded, select, Receiver};
+use logger::Logger;
 use rcserver::MinecraftServer;
 
 mod rcserver;
+mod logger;
 
 fn ctrl_channel() -> Result<Receiver<()>, ctrlc::Error> {
     let (sender, receiver) = bounded(100);
@@ -15,8 +17,10 @@ fn ctrl_channel() -> Result<Receiver<()>, ctrlc::Error> {
 }
 
 fn main() -> std::io::Result<()> {
-    println!("RustCraft Server starting...");
-    println!("Ctrl+C to exit");
+    let logger = Logger::new("Main");
+
+    logger.info(&format!("RustCraft Server starting..."));
+    logger.info(&format!("Ctrl+C to exit"));
 
     let server = MinecraftServer::new("127.0.0.1:25565");
 
@@ -27,6 +31,7 @@ fn main() -> std::io::Result<()> {
     loop {
         select! {
             recv(ctrl_c_events) -> _ => {
+                drop(logger);
                 print!("");
                 println!("Goodbye!");
                 break;

@@ -1,13 +1,18 @@
+use crate::logger::Logger;
+
 use std::{io::{BufReader, Read}, net::{Shutdown, TcpListener, TcpStream}, thread};
+
 
 pub struct MinecraftServer {
     address: String,
+    logger: Logger
 }
 
 impl MinecraftServer {
     pub fn new(addr: &str) -> MinecraftServer {
         MinecraftServer {
-            address: addr.to_owned()
+            address: addr.to_owned(),
+            logger: Logger::new("MinecraftServer")
         }
     }
 
@@ -16,18 +21,19 @@ impl MinecraftServer {
 
         let server_address = listener.local_addr()?;
 
-        println!("Listening on {}:{}", server_address.ip(), server_address.port());
+        self.logger.info(&format!("Listening on {}:{}", server_address.ip(), server_address.port()));
 
         for stream in listener.incoming() {
             match stream {
                 Ok(stream) => {
                     let address = stream.peer_addr().unwrap();
-                    println!("Received a connection: {}:{}", address.ip(), address.port());
+                    self.logger.verbose(&format!("Received a connection: {}:{}", address.ip(), address.port()));
+                    let logger = self.logger.clone();
                     thread::spawn(move || { 
-                        handle_connection(stream);
+                        handle_connection(logger, stream);
                     });
                 }
-                Err(e) => println!("Failed to read incoming stream: {}", e)
+                Err(e) => self.logger.warn(&format!("Failed to read incoming stream: {}", e))
             }
         }
 
@@ -35,7 +41,7 @@ impl MinecraftServer {
     }
 }
 
-fn handle_connection(stream: TcpStream) {
+fn handle_connection(logger: Logger, stream: TcpStream) {
     let address = stream.peer_addr().unwrap();
 
     let mut buf = BufReader::new(stream.try_clone().unwrap());
@@ -44,12 +50,12 @@ fn handle_connection(stream: TcpStream) {
         match buf.read_to_end(&mut bytes) {
             Ok(b)  => {
                 if b == 0 { break; }
-                println!("Received data ({} bytes): {}", bytes.len(), hex::encode(bytes));
+                logger.debug(&format!("Received data ({} bytes): {}", bytes.len(), hex::encode(bytes)));
             }
-            Err(e) => println!("Error receiving data: {}", e)
+            Err(e) => logger.warn(&format!("Error receiving data: {}", e))
         }
     }
 
-    println!("Client {}:{} dropped", address.ip(), address.port());
+    logger.verbose(&format!("Client {}:{} dropped", address.ip(), address.port()));
     stream.shutdown(Shutdown::Both).unwrap();
 }

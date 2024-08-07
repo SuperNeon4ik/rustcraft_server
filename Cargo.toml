@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+chrono = "0.4.38"
+colored = "2.1.0"
 crossbeam-channel = "0.5.13"
 ctrlc = "3.4.4"
 hex = "0.4.3"
