@@ -1,7 +1,7 @@
-use bytes::{buf::Reader, Buf, Bytes, BytesMut};
+use bytes::{Buf, BytesMut};
 
 use crate::{log, network::packet::read_string, LOGGER};
-use std::{io::{Error, Read}, net::{Shutdown, SocketAddr, TcpStream}};
+use std::{io::Read, net::{Shutdown, TcpStream}};
 
 use super::packet::read_varint;
 

@@ -1,5 +1,5 @@
 use crate::{log, network::connection::Connection, LOGGER};
-use std::{io::Read, net::{Shutdown, TcpListener, TcpStream}, thread};
+use std::{net::TcpListener, thread};
 
 pub struct MinecraftServer {
     address: String,
