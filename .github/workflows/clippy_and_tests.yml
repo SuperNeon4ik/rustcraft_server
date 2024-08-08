@@ -3,6 +3,7 @@ name: Clippy & Tests
 
 jobs:
   clippy_check:
+    name: Clippy check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -13,6 +14,7 @@ jobs:
           RUSTFLAGS: "-Dwarnings"
 
   run_tests:
+    name: Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
