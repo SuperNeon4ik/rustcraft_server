@@ -15,6 +15,9 @@ lazy_static! {
     static ref LOGGER: Logger = Logger::new_with_file("server.log");
 }
 
+pub const VERSION_NAME: &str = "Rusty 1.21";
+pub const PROTOCOL_VERSION: i32 = 767;
+
 fn ctrl_channel() -> Result<Receiver<()>, ctrlc::Error> {
     let (sender, receiver) = bounded(100);
     ctrlc::set_handler(move || {
