@@ -3,6 +3,7 @@ extern crate lazy_static;
 
 mod server;
 mod utils;
+mod network;
 
 use std::thread;
 

@@ -1,12 +1,12 @@
-use crate::{log, LOGGER};
-use std::{io::{BufReader, Read}, net::{Shutdown, TcpListener, TcpStream}, thread};
+use crate::{log, network::connection::Connection, LOGGER};
+use std::{io::Read, net::{Shutdown, TcpListener, TcpStream}, thread};
 
 pub struct MinecraftServer {
     address: String,
 }
 
 impl MinecraftServer {
-    pub fn new(addr: &str) -> MinecraftServer {
+    pub fn new(addr: &str) -> Self {
         MinecraftServer {
             address: addr.to_owned(),
         }
@@ -24,8 +24,10 @@ impl MinecraftServer {
                 Ok(stream) => {
                     let address = stream.peer_addr().unwrap();
                     log!(info, "Received a connection: {}:{}", address.ip(), address.port());
+
+                    let conn = Connection::new(stream);
                     thread::spawn(move || { 
-                        handle_connection(stream);
+                        conn.start_reading();
                     });
                 }
                 Err(e) => log!(warn, "Failed to read incoming stream: {}", e)
@@ -34,23 +36,4 @@ impl MinecraftServer {
 
         Ok(())
     }
-}
-
-fn handle_connection(stream: TcpStream) {
-    let address = stream.peer_addr().unwrap();
-
-    let mut buf = BufReader::new(stream.try_clone().unwrap());
-    loop {
-        let mut bytes:Vec<u8> = Vec::new();
-        match buf.read_to_end(&mut bytes) {
-            Ok(b)  => {
-                if b == 0 { break; }
-                log!(debug, "Received data ({} bytes): {}", bytes.len(), hex::encode(bytes));
-            }
-            Err(e) => log!(warn, "Error receiving data: {}", e)
-        }
-    }
-
-    log!(verbose, "Client {}:{} dropped", address.ip(), address.port());
-    stream.shutdown(Shutdown::Both).unwrap();
 }
