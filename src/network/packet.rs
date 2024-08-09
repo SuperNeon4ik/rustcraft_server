@@ -35,7 +35,6 @@ fn write_varint(buf: &mut dyn BufMut, value: i32) {
 }
 
 pub fn read_string(buf: &mut dyn Buf) -> Option<String> {
-    let buf_size = buf.remaining();
     let length = read_varint(buf).unwrap() as usize;
 
     if buf.remaining() < length {
@@ -43,7 +42,6 @@ pub fn read_string(buf: &mut dyn Buf) -> Option<String> {
     }
 
     let mut string_bytes = vec![0u8; length];
-    buf.advance(buf_size - buf.remaining());
     buf.copy_to_slice(&mut string_bytes);
     let result = str::from_utf8(&string_bytes).unwrap();
     
@@ -72,6 +70,8 @@ pub fn prepare_uncompressed_packet(buf: &mut BytesMut, packet_id: i32) -> Vec<u8
 
 #[cfg(test)]
 mod tests {
+    use bytes::Bytes;
+
     use super::*;
 
     #[test]
@@ -218,8 +218,8 @@ mod tests {
     #[test]
     fn test_read_string_success() {
         let mut buf = BytesMut::new();
-        write_varint(&mut buf, 13); // Length of "Hello, world!"
-        write_string(&mut buf, "Hello, world!");
+        buf.put_u8(13); // Length of "Hello, world!"
+        buf.put_slice("Hello, world!".as_bytes());
 
         let result = read_string(&mut buf).unwrap();
         assert_eq!(result, "Hello, world!");
@@ -239,7 +239,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "from_utf8")]
+    #[should_panic(expected = "Utf8Error")]
     fn test_read_string_invalid_utf8() {
         let mut buf = BytesMut::new();
         buf.put_u8(3);
