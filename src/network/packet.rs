@@ -21,15 +21,21 @@ pub fn read_varint(buf: &mut dyn Buf) -> Option<i32> {
     None // VarInt is too long
 }
 
-pub fn write_varint(buf: &mut dyn BufMut, mut value: i32) {
-    while value & !0x7F != 0 {
-        buf.put_u8((value as u8 & 0x7F) | 0x80);
-        value >>= 7;
+fn write_varint(buf: &mut dyn BufMut, value: i32) {
+    let mut value = value;
+    loop {
+        if (value & !0x7F) == 0 {
+            buf.put_u8(value as u8);
+            return;
+        }
+
+        buf.put_u8(((value & 0x7F) | 0x80) as u8);
+        value = ((value as u32) >> 7) as i32;
     }
-    buf.put_u8(value as u8 & 0x7F);
 }
 
 pub fn read_string(buf: &mut dyn Buf) -> Option<String> {
+    let buf_size = buf.remaining();
     let length = read_varint(buf).unwrap() as usize;
 
     if buf.remaining() < length {
@@ -37,6 +43,7 @@ pub fn read_string(buf: &mut dyn Buf) -> Option<String> {
     }
 
     let mut string_bytes = vec![0u8; length];
+    buf.advance(buf_size - buf.remaining());
     buf.copy_to_slice(&mut string_bytes);
     let result = str::from_utf8(&string_bytes).unwrap();
     
@@ -52,18 +59,13 @@ pub fn write_string(buf: &mut dyn BufMut, data: &str) {
 }
 
 pub fn prepare_uncompressed_packet(buf: &mut BytesMut, packet_id: i32) -> Vec<u8> {
-    let mut packet_id_buf = BytesMut::with_capacity(5);
-    write_varint(&mut packet_id_buf, packet_id);
+    let mut packet_buf = BytesMut::with_capacity(10);
+    write_varint(&mut packet_buf, packet_id);
+    packet_buf.put(buf);
 
-    let len = packet_id_buf.len() + buf.len();
-
-    let mut length_buf = BytesMut::with_capacity(3);
-    write_varint(&mut length_buf, len as i32);
-
-    let mut final_buf = BytesMut::with_capacity(length_buf.len() + len);
-    final_buf.put(length_buf);
-    final_buf.put(packet_id_buf);
-    final_buf.put(buf);
+    let mut final_buf = BytesMut::new();
+    write_varint(&mut final_buf, packet_buf.len() as i32);
+    final_buf.put(packet_buf);
 
     final_buf.to_vec()
 }
@@ -85,6 +87,18 @@ mod tests {
     }
 
     #[test]
+    fn test_read_varint_many_bytes_1() {
+        let mut buf = BytesMut::from(&[0x83, 0x08][..]);
+        assert_eq!(read_varint(&mut buf), Some(1027));
+    }
+
+    #[test]
+    fn test_read_varint_many_bytes_2() {
+        let mut buf = BytesMut::from(&[0xb9, 0x60][..]);
+        assert_eq!(read_varint(&mut buf), Some(12345));
+    }
+
+    #[test]
     fn test_read_varint_negative() {
         let mut buf = BytesMut::from(&[0xff, 0xff, 0xff, 0xff, 0x0f][..]);
         assert_eq!(read_varint(&mut buf), Some(-1));
@@ -94,6 +108,12 @@ mod tests {
     fn test_read_varint_max_value() {
         let mut buf = BytesMut::from(&[0xFF, 0xFF, 0xFF, 0xFF, 0x07][..]);
         assert_eq!(read_varint(&mut buf), Some(2147483647)); // Maximum value for i32
+    }
+
+    #[test]
+    fn test_read_varint_min_value() {
+        let mut buf = BytesMut::from(&[0x80, 0x80, 0x80, 0x80, 0x08][..]);
+        assert_eq!(read_varint(&mut buf), Some(-2147483648)); // Minimum value for i32
     }
 
     #[test]
@@ -121,6 +141,13 @@ mod tests {
     }
 
     #[test]
+    fn test_multi_read_varint() {
+        let mut buf = BytesMut::from(&[0x83, 0x08, 0xb9, 0x60][..]);
+        assert_eq!(read_varint(&mut buf), Some(1027));
+        assert_eq!(read_varint(&mut buf), Some(12345));
+    }
+
+    #[test]
     fn test_write_varint_single_byte() {
         let mut buf = BytesMut::new();
         write_varint(&mut buf, 1);
@@ -132,6 +159,20 @@ mod tests {
         let mut buf = BytesMut::new();
         write_varint(&mut buf, 300);
         assert_eq!(buf, BytesMut::from(&[0xAC, 0x02][..]));
+    }
+
+    #[test]
+    fn test_write_varint_many_bytes_1() {
+        let mut buf = BytesMut::new();
+        write_varint(&mut buf, 1027);
+        assert_eq!(buf, BytesMut::from(&[0x83, 0x08][..]));
+    }
+
+    #[test]
+    fn test_write_varint_many_bytes_2() {
+        let mut buf = BytesMut::new();
+        write_varint(&mut buf, 12345);
+        assert_eq!(buf, BytesMut::from(&[0xb9, 0x60][..]));
     }
 
     #[test]
@@ -268,11 +309,11 @@ mod tests {
         let result = prepare_uncompressed_packet(&mut buf, packet_id);
 
         // Expected result:
-        // - length: 3 bytes for packet ID (12345) + 1024 bytes of payload = 1027 bytes
-        // - length varint: 2 bytes (for value 1027)
-        // - packet ID varint: 3 bytes (for value 12345)
+        // - length: 2 bytes for length (1026) + 2 bytes for packet ID (12345) + 1024 bytes of payload = 1028 bytes
+        // - length varint: 2 bytes (for value 1026)
+        // - packet ID varint: 2 bytes (for value 12345)
         // - payload: 1024 bytes of 'a'
-        let mut expected = vec![0x84, 0x08, 0xb9, 0x60];
+        let mut expected = vec![0x82, 0x08, 0xb9, 0x60];
         expected.extend_from_slice(&payload);
 
         assert_eq!(result, expected);
