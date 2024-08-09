@@ -70,8 +70,6 @@ pub fn prepare_uncompressed_packet(buf: &mut BytesMut, packet_id: i32) -> Vec<u8
 
 #[cfg(test)]
 mod tests {
-    use bytes::Bytes;
-
     use super::*;
 
     #[test]
