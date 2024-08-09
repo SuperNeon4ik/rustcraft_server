@@ -101,7 +101,7 @@ impl Connection {
 
     fn extract_packet(data: &mut Vec<u8>) -> Option<Vec<u8>> {
         let mut buf = BytesMut::from(&data[..]);
-        if let Some(packet_length) = read_varint(&mut buf) {
+        if let Ok(packet_length) = read_varint(&mut buf) {
             if buf.len() >= packet_length as usize {
                 data.drain(..(data.len() - buf.len()));
                 let packet = data.drain(..packet_length as usize).collect();
