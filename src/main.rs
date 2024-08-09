@@ -7,12 +7,13 @@ mod network;
 
 use std::thread;
 
+use chrono::Local;
 use crossbeam_channel::{bounded, select, Receiver};
-use utils::logger::Logger;
+use utils::logger::{LogLevel, Logger};
 use server::MinecraftServer;
 
 lazy_static! {
-    static ref LOGGER: Logger = Logger::new_with_file("server.log");
+    static ref LOGGER: Logger = Logger::new(&format!("logs/{}.log", Local::now().format("%Y-%m-%d-%H-%M-%S")), LogLevel::Debug);
 }
 
 pub const VERSION_NAME: &str = "Rusty 1.21";

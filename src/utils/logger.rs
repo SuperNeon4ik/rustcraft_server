@@ -1,19 +1,21 @@
 use core::fmt;
-use std::{fs::{self, OpenOptions}, io::Write, sync::Mutex};
+use std::{fs::{self, OpenOptions}, io::Write, path::Path, sync::Mutex};
 
 use chrono::Local;
 use colored::Colorize;
 
 pub struct Logger {
-    file: Option<Mutex<fs::File>>,
+    file: Mutex<fs::File>,
+    level: LogLevel
 }
 
+#[derive(PartialEq, PartialOrd)]
 pub enum LogLevel {
-    Error,
-    Warn,
-    Info,
-    Verbose,
-    Debug,
+    Error = 4,
+    Warn = 3,
+    Info = 2,
+    Verbose = 1,
+    Debug = 0,
 }
 
 impl fmt::Display for LogLevel {
@@ -31,13 +33,10 @@ impl fmt::Display for LogLevel {
 }
 
 impl Logger {
-    pub fn new() -> Self {
-        Logger {
-            file: None
-        }
-    }
+    pub fn new(log_file: &str, level: LogLevel) -> Self {
+        let parent = Path::new(log_file).parent().unwrap();
+        fs::create_dir_all(parent).unwrap();
 
-    pub fn new_with_file(log_file: &str) -> Self {
         let file = OpenOptions::new()
             .append(true)
             .create(true)
@@ -45,18 +44,23 @@ impl Logger {
             .expect("Unable to open log file");
 
         Logger {
-            file: Some(Mutex::new(file)),
+            file: Mutex::new(file),
+            level
         }
     }
 
     pub fn log(&self, level: LogLevel, source: &str, text: &str) {
-        let date = Local::now();
-        let formatted_text = format!("[{}] [{}] [{}] {}\n", date.format("%Y-%m-%d %H:%M:%S"), level, source, text);
+        if level < self.level { return; }
 
-        if let Some(file) = &self.file {
-            let mut file_lock = file.lock().unwrap();
-            file_lock.write_all(formatted_text.as_bytes()).expect("Unable to write to log file");
-        }
+        let date = Local::now();
+        let formatted_text = if self.level <= LogLevel::Verbose {
+            format!("[{}] [{}] [{}] {}\n", date.format("%Y-%m-%d %H:%M:%S"), level, source, text)
+        } else {
+            format!("[{}] [{}] {}\n", date.format("%Y-%m-%d %H:%M:%S"), level, text)
+        };
+
+        let mut file_lock = self.file.lock().unwrap();
+        file_lock.write_all(formatted_text.as_bytes()).expect("Unable to write to log file");
 
         let colored_text = match level {
             LogLevel::Error => formatted_text.red(),
