@@ -1,13 +1,7 @@
 use core::str;
 use bytes::{Buf, BufMut};
 
-#[derive(Debug)]
-pub enum PacketReadError {
-    EmptyBuf,
-    BufferUnderflow,
-    TooLong,
-    Utf8Error,
-}
+use crate::utils::errors::PacketReadError;
 
 pub fn read_varint(buf: &mut dyn Buf) -> Result<i32, PacketReadError> {
     let mut value = 0;

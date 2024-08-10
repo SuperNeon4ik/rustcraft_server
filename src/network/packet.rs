@@ -1,9 +1,84 @@
-use bytes::{BufMut, BytesMut};
-use super::packet_utils::{write_string, write_varint};
+use bytes::{Buf, BufMut, BytesMut};
+use crate::utils::errors::PacketReadError;
+
+use super::packet_utils::{read_string, read_varint, write_string, write_varint};
+
+pub struct PacketReader {
+    packet_id: i32,
+    data: BytesMut,
+}
 
 pub struct PacketWriter {
     packet_id: i32,
     data: BytesMut,
+}
+
+impl PacketReader {
+    pub fn new(data: &[u8]) -> Result<Self, PacketReadError> {
+        let mut buf = BytesMut::from(data);
+        let packet_id = read_varint(&mut buf)?;
+
+        Ok(PacketReader {
+            packet_id,
+            data: buf,
+        })
+    }
+
+    pub fn id(&self) -> i32 {
+        self.packet_id
+    }
+
+    pub fn data(&self) -> &BytesMut {
+        &self.data
+    }
+
+    pub fn read_varint(&mut self) -> Result<i32, PacketReadError> {
+        read_varint(&mut self.data)
+    }
+
+    pub fn read_string(&mut self) -> Result<String, PacketReadError> {
+        read_string(&mut self.data)
+    }
+
+    pub fn read_byte(&mut self) -> Result<i8, PacketReadError> {
+        if self.data.remaining() < 1 { Err(PacketReadError::BufferUnderflow) }
+        else { Ok(self.data.get_i8()) }
+    }
+
+    pub fn read_ubyte(&mut self) -> Result<u8, PacketReadError> {
+        if self.data.remaining() < 1 { Err(PacketReadError::BufferUnderflow) }
+        else { Ok(self.data.get_u8()) }
+    }
+
+    pub fn read_short(&mut self) -> Result<i16, PacketReadError> {
+        if self.data.remaining() < 2 { Err(PacketReadError::BufferUnderflow) }
+        else { Ok(self.data.get_i16_le()) }
+    }
+
+    pub fn read_ushort(&mut self) -> Result<u16, PacketReadError> {
+        if self.data.remaining() < 2 { Err(PacketReadError::BufferUnderflow) }
+        else { Ok(self.data.get_u16_le()) }
+    }
+
+    pub fn read_int(&mut self) -> Result<i32, PacketReadError> {
+        if self.data.remaining() < 4 { Err(PacketReadError::BufferUnderflow) }
+        else { Ok(self.data.get_i32_le()) }
+    }
+
+    pub fn read_long(&mut self) -> Result<i64, PacketReadError> {
+        if self.data.remaining() < 8 { Err(PacketReadError::BufferUnderflow) }
+        else { Ok(self.data.get_i64_le()) }
+    }
+
+    pub fn read_float(&mut self) -> Result<f32, PacketReadError> {
+        if self.data.remaining() < 4 { Err(PacketReadError::BufferUnderflow) }
+        else { Ok(self.data.get_f32_le()) }
+    }
+
+    pub fn read_double(&mut self) -> Result<f64, PacketReadError> {
+        if self.data.remaining() < 8 { Err(PacketReadError::BufferUnderflow) }
+        else { Ok(self.data.get_f64_le()) }
+    }
 }
 
 impl PacketWriter {
