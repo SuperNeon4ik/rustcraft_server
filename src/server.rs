@@ -6,9 +6,9 @@ pub struct MinecraftServer {
 }
 
 impl MinecraftServer {
-    pub fn new(addr: &str) -> Self {
+    pub fn new(ip: &str, port: u16) -> Self {
         MinecraftServer {
-            address: addr.to_owned(),
+            address: ip.to_owned() + ":" + &port.to_string(),
         }
     }
 

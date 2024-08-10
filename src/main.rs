@@ -9,15 +9,25 @@ use std::thread;
 
 use chrono::Local;
 use crossbeam_channel::{bounded, select, Receiver};
-use utils::logger::{LogLevel, Logger};
+use once_cell::sync::Lazy;
+use utils::{config::{read_config, write_default_config, Config}, logger::{LogLevel, Logger}};
 use server::MinecraftServer;
 
 lazy_static! {
     static ref LOGGER: Logger = Logger::new(&format!("logs/{}.log", Local::now().format("%Y-%m-%d-%H-%M-%S")), LogLevel::Debug);
 }
 
-pub const VERSION_NAME: &str = "Rusty 1.21";
+pub const VERSION: &str = "1.21";
 pub const PROTOCOL_VERSION: i32 = 767;
+
+pub static CONFIG: Lazy<Config> = Lazy::new(|| {
+    log!(verbose, "Loading config.toml...");
+    if write_default_config("config.toml") {
+        log!(info, "Created default config file!");
+    }
+
+    read_config("config.toml").expect("Config file missing.")
+});
 
 fn ctrl_channel() -> Result<Receiver<()>, ctrlc::Error> {
     let (sender, receiver) = bounded(100);
@@ -29,10 +39,10 @@ fn ctrl_channel() -> Result<Receiver<()>, ctrlc::Error> {
 }
 
 fn main() -> std::io::Result<()> {
-    log!(info, "RustCraft Server ({}; Protocol {}) starting...", VERSION_NAME, PROTOCOL_VERSION);
+    log!(info, "RustCraft Server ({} {}; Protocol {}) starting...", CONFIG.status.version_prefix, VERSION, PROTOCOL_VERSION);
     log!(info, "Ctrl+C to exit");
 
-    let server = MinecraftServer::new("127.0.0.1:25565");
+    let server = MinecraftServer::new(&CONFIG.server.ip, CONFIG.server.port);
 
     thread::spawn(move || { server.start_listening() });
 

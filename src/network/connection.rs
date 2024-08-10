@@ -1,7 +1,7 @@
 use bytes::BytesMut;
 use json::object;
 
-use crate::{log, network::{packet::PacketWriter, packet_utils::read_varint}, utils::errors::PacketHandleError, LOGGER};
+use crate::{log, network::{packet::PacketWriter, packet_utils::read_varint}, utils::errors::PacketHandleError, CONFIG, LOGGER};
 use core::fmt;
 use std::{io::{Read, Write}, net::{Shutdown, TcpStream}, sync::{Arc, Mutex, MutexGuard}};
 
@@ -147,16 +147,16 @@ impl Connection {
             0x00 => {
                 let json_status_response = object! {
                     version: {
-                        name: crate::VERSION_NAME,
+                        name: CONFIG.status.version_prefix.clone() + " " + crate::VERSION,
                         protocol: crate::PROTOCOL_VERSION,
                     },
                     players: {
-                        max: 69,
+                        max: CONFIG.status.max_players,
                         online: 69,
                         sample: []
                     },
                     description: {
-                        text: "Rusty experimental minecraft server!",
+                        text: CONFIG.status.motd.clone(),
                     },
                     enforcesSecureChat: false,
                 };
