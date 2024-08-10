@@ -23,6 +23,12 @@ impl fmt::Display for PacketHandleError {
     }
 }
 
+impl From<PacketReadError> for PacketHandleError {
+    fn from(err: PacketReadError) -> PacketHandleError {
+        PacketHandleError::ReadError(err)
+    }
+}
+
 impl fmt::Display for PacketReadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let msg = match self {

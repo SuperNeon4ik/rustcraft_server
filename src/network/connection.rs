@@ -113,16 +113,16 @@ impl Connection {
             0x00 => {
                 log!(debug, "Handshake from {}:{}:", address.ip(), address.port());
 
-                let protocol_version = packet.read_varint().unwrap();
+                let protocol_version = packet.read_varint()?;
                 log!(debug, "\tprotocol_version = {}", protocol_version);
 
-                let server_address = packet.read_string().unwrap();
+                let server_address = packet.read_string()?;
                 log!(debug, "\tserver_address = {}", server_address);
 
-                let server_port = packet.read_ushort().unwrap();
+                let server_port = packet.read_ushort()?;
                 log!(debug, "\tserver_port = {}", server_port);
                 
-                let next_state = packet.read_varint().unwrap();
+                let next_state = packet.read_varint()?;
                 log!(debug, "\tnext_state = {}", next_state);
 
                 // 1 for Status, 2 for Login, 3 for Transfer
@@ -171,7 +171,7 @@ impl Connection {
                 Self::send_packet_bytes(stream, &status_response_packet);
             }
             0x01 => {
-                let client_timestamp = packet.read_long().unwrap();
+                let client_timestamp = packet.read_long()?;
 
                 let ping_response_packet = PacketWriter::new(0x01)
                     .write_long(client_timestamp)
