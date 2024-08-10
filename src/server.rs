@@ -12,10 +12,10 @@ impl MinecraftServer {
         }
     }
 
-    pub fn start_listening(&self) -> std::io::Result<()> {
-        let listener = TcpListener::bind(&self.address)?;
+    pub fn start_listening(&self) {
+        let listener = TcpListener::bind(&self.address).unwrap();
 
-        let server_address = listener.local_addr()?;
+        let server_address = listener.local_addr().unwrap();
 
         log!(info, "Listening on {}:{}", server_address.ip(), server_address.port());
 
@@ -33,7 +33,5 @@ impl MinecraftServer {
                 Err(e) => log!(warn, "Failed to read incoming stream: {}", e)
             }
         }
-
-        Ok(())
     }
 }
