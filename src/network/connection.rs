@@ -63,7 +63,7 @@ impl Connection {
 
                     while let Some(packet) = Self::extract_packet(&mut data_accumulator) {
                         let packet_id = packet.id();
-                        log!(debug, "Received packet with ID 0x{:x?}", &packet_id);
+                        log!(debug, "Received packet with ID 0x{:x?} ({})", &packet_id, *state);
 
                         if let Err(e) = match *state {
                             ConnectionState::Handshaking => Self::handle_handshaking_packet(&mut stream, &mut state, packet),
@@ -102,7 +102,7 @@ impl Connection {
 
     fn send_packet_bytes(stream: &mut TcpStream, data: &[u8]) {
         let address = stream.peer_addr().unwrap();
-        log!(debug, "Sending packet ({} bytes) to {}:{}: {}", data.len(), address.ip(), address.port(), hex::encode(data));
+        log!(debug, "Sending packet ({} bytes) to {}:{}", data.len(), address.ip(), address.port());
         stream.write_all(data).unwrap();
     }
 

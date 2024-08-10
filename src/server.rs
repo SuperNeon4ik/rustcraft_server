@@ -23,7 +23,7 @@ impl MinecraftServer {
             match stream {
                 Ok(stream) => {
                     let address = stream.peer_addr().unwrap();
-                    log!(info, "Received a connection: {}:{}", address.ip(), address.port());
+                    log!(verbose, "Received a connection: {}:{}", address.ip(), address.port());
 
                     let conn = Connection::new(stream);
                     thread::spawn(move || { 
