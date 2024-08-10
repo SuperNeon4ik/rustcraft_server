@@ -1,10 +1,9 @@
-use bytes::{Buf, BufMut, BytesMut};
+use bytes::{Buf, BytesMut};
 use json::object;
 
-use crate::{log, network::packet::{prepare_uncompressed_packet, read_string, write_string}, LOGGER};
+use crate::{log, network::{packet::PacketWriter, packet_utils::{read_string, read_varint}}, LOGGER};
 use core::fmt;
-use std::{io::{BufWriter, Read, Write}, net::{Shutdown, TcpStream}, sync::{Arc, Mutex, MutexGuard}};
-use super::packet::read_varint;
+use std::{io::{Read, Write}, net::{Shutdown, TcpStream}, sync::{Arc, Mutex, MutexGuard}};
 
 #[derive(Clone, PartialEq)]
 pub enum ConnectionState {
@@ -31,22 +30,6 @@ impl fmt::Display for ConnectionState {
     }
 }
 
-// pub enum ServerboundPacket {
-//     // 1. Handshaking
-//     HandshakingHandshake(i32, String, u16, i32),
-//     HandshakingLegacyServerListPing(u8),
-
-//     // 2. Status
-//     StatusStatusRequest(),
-//     StatusPingRequest(i64),
-// }
-
-// pub enum ClientboundPacket {
-//     // 2. Status
-//     StatusStatusResponse(String),
-//     StatusPingResponse(i64)
-// }
-
 pub struct Connection {
     stream: Arc<Mutex<TcpStream>>,
     state: Arc<Mutex<ConnectionState>>,
@@ -72,11 +55,8 @@ impl Connection {
 
         loop {
             match stream.read(&mut buf) {
-                Ok(0) => {
-                    log!(verbose, "Client {}:{} disconnected", address.ip(), address.port());
-                    break;
-                }
-                Ok(n)  => {
+                Ok(0) => break,
+                Ok(n) => {
                     data_accumulator.extend_from_slice(&buf[..n]);
 
                     while let Some(packet) = Self::extract_packet(&mut data_accumulator) {
@@ -112,12 +92,10 @@ impl Connection {
         None
     }
 
-    fn send_packet_bytes(stream: &mut TcpStream, data: Vec<u8>) {
+    fn send_packet_bytes(stream: &mut TcpStream, data: &[u8]) {
         let address = stream.peer_addr().unwrap();
-        let mut buf_writer = BufWriter::new(stream.try_clone().unwrap());
-        log!(debug, "Sending packet ({} bytes) to {}:{}: {}", data.len(), address.ip(), address.port(), hex::encode(&data));
-        buf_writer.write_all(&data).unwrap();
-        buf_writer.flush().unwrap();
+        log!(debug, "Sending packet ({} bytes) to {}:{}: {}", data.len(), address.ip(), address.port(), hex::encode(data));
+        stream.write_all(data).unwrap();
     }
 
     fn handle_handshaking_packet(stream: &mut TcpStream, state: &mut MutexGuard<ConnectionState>, data: &[u8]) {
@@ -191,20 +169,20 @@ impl Connection {
                 let json_status_response_dump = json_status_response.dump();
                 log!(debug, "Status response dump: {}", json_status_response_dump);
 
-                let mut buf = BytesMut::new();
-                write_string(&mut buf, &json_status_response_dump);
+                let status_response_packet = PacketWriter::new(0x00)
+                    .write_string(&json_status_response_dump)
+                    .build_uncompressed();
 
-                let data = prepare_uncompressed_packet(&mut buf, 0x00);
-                Self::send_packet_bytes(stream, data);
+                Self::send_packet_bytes(stream, &status_response_packet);
             }
             0x01 => {
                 let client_timestamp = buf.get_i64_le();
 
-                let mut buf = BytesMut::new();
-                buf.put_i64_le(client_timestamp);
+                let ping_response_packet = PacketWriter::new(0x01)
+                    .write_long(client_timestamp)
+                    .build_uncompressed();
 
-                let data = prepare_uncompressed_packet(&mut buf, 0x01);
-                Self::send_packet_bytes(stream, data);
+                Self::send_packet_bytes(stream, &ping_response_packet);
             }
             _ => log!(warn, "Unexpected packet from {}:{} during STATUS with ID 0x{}", address.ip(), address.port(), hex::encode(packet_id.to_le_bytes()))
         }
