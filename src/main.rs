@@ -29,7 +29,7 @@ fn ctrl_channel() -> Result<Receiver<()>, ctrlc::Error> {
 }
 
 fn main() -> std::io::Result<()> {
-    log!(info, "RustCraft Server starting...");
+    log!(info, "RustCraft Server ({}; Protocol {}) starting...", VERSION_NAME, PROTOCOL_VERSION);
     log!(info, "Ctrl+C to exit");
 
     let server = MinecraftServer::new("127.0.0.1:25565");
