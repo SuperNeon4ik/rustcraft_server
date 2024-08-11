@@ -260,7 +260,6 @@ dependencies = [
  "ctrlc",
  "hex",
  "json",
- "lazy_static",
  "once_cell",
  "serde",
  "serde_derive",

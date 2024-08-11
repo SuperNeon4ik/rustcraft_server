@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate lazy_static;
-
 mod server;
 mod utils;
 mod network;
@@ -13,10 +10,6 @@ use once_cell::sync::Lazy;
 use utils::{config::{read_config, write_default_config, Config}, logger::{LogLevel, Logger}};
 use server::MinecraftServer;
 
-lazy_static! {
-    static ref LOGGER: Logger = Logger::new(&format!("logs/{}.log", Local::now().format("%Y-%m-%d-%H-%M-%S")), LogLevel::Debug);
-}
-
 pub const VERSION: &str = "1.21";
 pub const PROTOCOL_VERSION: i32 = 767;
 
@@ -27,6 +20,10 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     }
 
     read_config("config.toml").expect("Config file missing.")
+});
+
+pub static LOGGER: Lazy<Logger> = Lazy::new(|| {
+    Logger::new(&format!("logs/{}.log", Local::now().format("%Y-%m-%d-%H-%M-%S")), LogLevel::Debug)
 });
 
 fn ctrl_channel() -> Result<Receiver<()>, ctrlc::Error> {
