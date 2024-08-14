@@ -3,13 +3,14 @@ use std::{fs::{self, OpenOptions}, io::Write, path::Path, sync::Mutex};
 
 use chrono::Local;
 use colored::Colorize;
+use serde_derive::{Deserialize, Serialize};
 
 pub struct Logger {
     file: Mutex<fs::File>,
     level: LogLevel
 }
 
-#[derive(PartialEq, PartialOrd)]
+#[derive(PartialEq, PartialOrd, Serialize, Deserialize, Clone)]
 pub enum LogLevel {
     Error = 4,
     Warn = 3,
@@ -47,6 +48,10 @@ impl Logger {
             file: Mutex::new(file),
             level
         }
+    }
+
+    pub fn set_level(&mut self, level: LogLevel) {
+        self.level = level;
     }
 
     pub fn log(&self, level: LogLevel, source: &str, text: &str) {

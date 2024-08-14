@@ -14,16 +14,19 @@ pub const VERSION: &str = "1.21";
 pub const PROTOCOL_VERSION: i32 = 767;
 
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
-    log!(verbose, "Loading config.toml...");
+    println!("Loading config.toml...");
     if write_default_config("config.toml") {
-        log!(info, "Created default config file!");
+        println!("Created default config file!");
     }
 
     read_config("config.toml").expect("Config file missing.")
 });
 
 pub static LOGGER: Lazy<Logger> = Lazy::new(|| {
-    Logger::new(&format!("logs/{}.log", Local::now().format("%Y-%m-%d-%H-%M-%S")), LogLevel::Debug)
+    let mut logger = Logger::new(&format!("logs/{}.log", Local::now().format("%Y-%m-%d-%H-%M-%S")), LogLevel::Info);
+    let level = CONFIG.misc.log_level.clone();
+    logger.set_level(level);
+    logger
 });
 
 fn ctrl_channel() -> Result<Receiver<()>, ctrlc::Error> {

@@ -1,12 +1,14 @@
-use crate::LOGGER;
 use std::{fs::{self, OpenOptions}, io::Write, path::Path};
 
 use serde_derive::{Deserialize, Serialize};
+
+use super::logger::LogLevel;
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub server: ServerConfig,
     pub status: StatusConfig,
+    pub misc: MiscConfig,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -22,6 +24,11 @@ pub struct StatusConfig {
     pub motd: String,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct MiscConfig {
+    pub log_level: LogLevel
+}
+
 pub fn read_config(filename: &str) -> Option<Config> {
     let data = match fs::read_to_string(filename) {
         Ok(d) => d,
@@ -31,7 +38,7 @@ pub fn read_config(filename: &str) -> Option<Config> {
     let config = match toml::from_str(&data) {
         Ok(conf) => conf,
         Err(e) => {
-            log!(error, "Failed to parse {} file: {}", filename, e);
+            eprintln!("Failed to parse {} file: {}", filename, e);
             return None;
         }
     };
@@ -51,13 +58,16 @@ pub fn write_default_config(filename: &str) -> bool {
             version_prefix: String::from("Rusty"),
             motd: String::from("Rusty experimental minecraft server!"), 
             max_players: 69, 
+        },
+        misc: MiscConfig {
+            log_level: LogLevel::Info,
         }
     };
 
     let data = match toml::to_string_pretty(&default_config) {
         Ok(d) => d,
         Err(e) => {
-            log!(error, "Failed to serialize default config: {}", e);
+            eprintln!("Failed to serialize default config: {}", e);
             return false;
         }
     };
@@ -69,7 +79,7 @@ pub fn write_default_config(filename: &str) -> bool {
         .open(filename) {
             Ok(f) => f,
             Err(e) => {
-                log!(error, "Failed to open config file: {}", e);
+                eprintln!("Failed to open config file: {}", e);
                 return false;
             }
         };

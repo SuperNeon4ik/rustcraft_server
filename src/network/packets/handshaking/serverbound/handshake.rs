@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{network::{connection::ConnectionState, packet::*}, utils::errors::PacketReadError};
+use crate::{network::packet::*, utils::errors::PacketReadError};
 
 pub struct HandshakingServerboundHandshake {
     pub protocol_version: i32,
