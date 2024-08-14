@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use bytes::{Buf, BufMut, BytesMut};
 use crate::utils::errors::PacketReadError;
 
-use super::packet_utils::{read_string, read_varint, write_string, write_varint};
+use super::{connection::ConnectionState, packet_utils::{read_string, read_varint, write_string, write_varint}, packets::{handshaking::serverbound::handshake::HandshakingServerboundHandshake, status::serverbound::{ping_request::StatusServerboundPingRequest, status_request::StatusServerboundStatusRequest}}};
 
 pub struct PacketReader {
     packet_id: i32,
@@ -157,3 +159,58 @@ impl PacketWriter {
         final_buf.to_vec()
     }
 }
+
+pub trait ClientboundPacket {
+    fn packet_id() -> i32;
+    fn build(&self) -> Vec<u8>;
+}
+
+pub trait ServerboundPacket {
+    fn packet_id() -> i32 
+    where 
+        Self: Sized;
+
+    fn read(reader: &mut PacketReader) -> Result<Self, PacketReadError>
+    where 
+        Self: Sized;
+}
+
+// pub struct PacketFactory {
+//     creators: HashMap<i32, fn(&mut PacketReader) -> Result<Box<dyn ServerboundPacket>, PacketReadError>>,
+// }
+
+// impl PacketFactory {
+//     pub fn new(state: &ConnectionState) -> Self {
+//         let mut factory = PacketFactory {
+//             creators: HashMap::new(),
+//         };
+
+//         // Register packets
+//         match state {
+//             ConnectionState::Handshaking => {
+//                 factory.register::<HandshakingServerboundHandshake>();
+//             }
+//             ConnectionState::Status => {
+//                 factory.register::<StatusServerboundPingRequest>();
+//                 factory.register::<StatusServerboundStatusRequest>();
+//             }
+//             _ => {}
+//         }
+
+//         factory
+//     }
+
+//     pub fn register<T: ServerboundPacket + 'static>(&mut self) {
+//         self.creators.insert(T::packet_id(), |reader| {
+//             Ok(Box::new(T::read(reader)?) as Box<dyn ServerboundPacket>)
+//         });
+//     }
+
+//     pub fn read_packet(&self, reader: &mut PacketReader) -> Result<Box<dyn ServerboundPacket>, PacketReadError> {
+//         if let Some(creator) = self.creators.get(&reader.packet_id) {
+//             creator(reader)
+//         } else {
+//             Err(PacketReadError::UnknownPacketId)
+//         }
+//     }
+// }

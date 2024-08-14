@@ -12,6 +12,8 @@ pub enum PacketReadError {
     BufferUnderflow,
     TooLong,
     Utf8Error,
+    UnknownPacketId, // TODO: Probably temporary error here
+    UnexpectedValue,
 }
 
 impl fmt::Display for PacketHandleError {
@@ -36,6 +38,8 @@ impl fmt::Display for PacketReadError {
             Self::BufferUnderflow => "Buffer underflow",
             Self::TooLong => "Too long",
             Self::Utf8Error => "UTF-8 Error",
+            Self::UnknownPacketId => "Unknown Packet ID",
+            Self::UnexpectedValue => "Unexpected value",
         };
 
         write!(f, "{}", msg)
