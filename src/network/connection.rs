@@ -52,25 +52,26 @@ impl Connection {
     }
 
     pub fn start_reading(&self) {
-        let mut stream = self.stream.lock().unwrap();
-        let address = stream.peer_addr().unwrap();
+        let stream_binding = Arc::clone(&self.stream);
+        let address = self.stream.lock().unwrap().peer_addr().unwrap();
 
         let mut buf = [0u8; 1024];
         let mut data_accumulator: Vec<u8> = Vec::new();
         
         loop {
+            let mut stream = stream_binding.lock().unwrap();
             match stream.read(&mut buf) {
                 Ok(0) => break,
                 Ok(n) => {
                     data_accumulator.extend_from_slice(&buf[..n]);
+                    drop(stream);
 
                     while let Some(reader) = Self::extract_packet_reader(&mut data_accumulator) {
                         let packet_id = reader.id();
-                        let state = self.state.lock().unwrap();
-                        log!(debug, "Received packet with ID 0x{:x?} ({})", &packet_id, *state);
+                        log!(debug, "Received packet with ID 0x{:x?}", &packet_id);
 
                         if let Err(e) = self.handle_packet(reader) {
-                            log!(warn, "Failed to handle packet 0x{:x?} ({}) for {}:{}: {}", packet_id, *state, address.ip(), address.port(), e);
+                            log!(warn, "Failed to handle packet 0x{:x?} for {}: {}", packet_id, self.get_addr(), e);
                         }
                     }
                 }
@@ -79,7 +80,7 @@ impl Connection {
         }
     
         log!(verbose, "Client {}:{} dropped", address.ip(), address.port());
-        stream.shutdown(Shutdown::Both).unwrap();
+        self.stream.lock().unwrap().shutdown(Shutdown::Both).unwrap();
     }
 
     fn extract_packet_reader(data: &mut Vec<u8>) -> Option<PacketReader> {
@@ -100,9 +101,9 @@ impl Connection {
 
     fn send_packet_bytes(&self, data: &[u8]) {
         let mut stream = self.stream.lock().unwrap();
-        let address = stream.peer_addr().unwrap();
-        log!(debug, "Sending packet ({} bytes) to {}:{}", data.len(), address.ip(), address.port());
         stream.write_all(data).unwrap();
+        drop(stream);
+        log!(debug, "Sent packet ({} bytes) to {}", data.len(), self.get_addr());
     }
 
     fn get_addr(&self) -> String {
@@ -111,11 +112,21 @@ impl Connection {
     }
 
     fn handle_packet(&self, reader: PacketReader) -> Result<(), PacketHandleError> {
-        let state = self.state.lock().unwrap();
-        match *state {
-            ConnectionState::Handshaking => Ok(self.handle_handshaking_packet(reader)?),
-            ConnectionState::Status => Ok(self.handle_status_packet(reader)?),
-            ConnectionState::Login => Ok(self.handle_login_packet(reader)?),
+        let state_ref = self.state.lock().unwrap();
+
+        match *state_ref {
+            ConnectionState::Handshaking => {
+                drop(state_ref);
+                Ok(self.handle_handshaking_packet(reader)?)
+            },
+            ConnectionState::Status => {
+                drop(state_ref);
+                Ok(self.handle_status_packet(reader)?)
+            },
+            ConnectionState::Login => {
+                drop(state_ref);
+                Ok(self.handle_login_packet(reader)?)
+            },
         }
     }
 
@@ -136,7 +147,8 @@ impl Connection {
                     server_port: packet.server_port,
                 });
 
-                let mut state = self.state.lock().unwrap();
+                let state_binding = Arc::clone(&self.state);
+                let mut state = state_binding.lock().unwrap();
                 match packet.next_state {
                     HandshakeNextState::Status => {
                         *state = ConnectionState::Status;
