@@ -28,8 +28,8 @@ impl PacketReader {
         self.packet_id
     }
 
-    pub fn data(&self) -> &BytesMut {
-        &self.data
+    pub fn data(&self) -> BytesMut {
+        self.data.clone()
     }
 
     pub fn read_varint(&mut self) -> Result<i32, PacketReadError> {
