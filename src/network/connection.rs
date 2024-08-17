@@ -5,16 +5,15 @@ use crate::{log, network::{packet_utils::read_varint, packets::handshaking::serv
 use core::fmt;
 use std::{io::{Read, Write}, net::{Shutdown, TcpStream}, sync::{Arc, Mutex, MutexGuard}};
 
-use super::{packet::{ClientboundPacket, PacketReader, ServerboundPacket}, packets::status::{clientbound::{ping_response::StatusClientboundPingResponse, status_response::StatusClientboundStatusResponse}, serverbound::ping_request::StatusServerboundPingRequest}};
+use super::{packet::{ClientboundPacket, PacketReader, ServerboundPacket}, packets::{status::{clientbound::{ping_response::StatusClientboundPingResponse, status_response::StatusClientboundStatusResponse}, serverbound::ping_request::StatusServerboundPingRequest}, login::{serverbound::login_start::LoginServerboundLoginStart, clientbound::disconnect::LoginClientboundDisconnect}}};
 
 #[derive(Clone, PartialEq)]
 pub enum ConnectionState {
     Handshaking,
     Status,
-    // Login,
+    Login,
     // Configuration,
     // Play,
-    Disconnect,
 }
 
 impl fmt::Display for ConnectionState {
@@ -22,10 +21,9 @@ impl fmt::Display for ConnectionState {
         let state = match self {
             Self::Handshaking => "Handshaking",
             Self::Status => "Status",
+            Self::Login => "Login",
             // Self::Configuration => "Configuration",
-            // Self::Login => "Login",
             // Self::Play => "Play",
-            Self::Disconnect => "Disconnect",
         };
 
         write!(f, "{}", state)
@@ -68,7 +66,7 @@ impl Connection {
                         if let Err(e) = match *state {
                             ConnectionState::Handshaking => Self::handle_handshaking_packet(&mut stream, &mut state, reader),
                             ConnectionState::Status => Self::handle_status_packet(&mut stream, reader),
-                            _ => todo!()
+                            ConnectionState::Login => Self::handle_login_packet(&mut stream, &mut state, reader),
                         } {
                             log!(warn, "Failed to handle packet 0x{:x?} ({}) for {}:{}: {}", packet_id, *state, address.ip(), address.port(), e);
                         }
@@ -76,8 +74,6 @@ impl Connection {
                 }
                 Err(e) => log!(warn, "Error receiving data: {}", e)
             }
-
-            if *state == ConnectionState::Disconnect { break }
         }
     
         log!(verbose, "Client {}:{} dropped", address.ip(), address.port());
@@ -122,8 +118,10 @@ impl Connection {
                     HandshakeNextState::Status => {
                         **state = ConnectionState::Status;
                     }
+                    HandshakeNextState::Login => {
+                        **state = ConnectionState::Login;
+                    }
                     _ => {
-                        **state = ConnectionState::Disconnect;
                         log!(warn, "Weird 'next_state' ({}) when handling handshake packet from {}:{}", packet.next_state, address.ip(), address.port());
                     }
                 }
@@ -172,5 +170,34 @@ impl Connection {
         }
 
         Ok(())
+    }
+
+    fn handle_login_packet(stream: &mut TcpStream, state: &mut MutexGuard<ConnectionState>, mut reader: PacketReader) -> Result<(), PacketHandleError> {
+        let addr = stream.peer_addr().unwrap();
+        let addr_str = format!("{}:{}", addr.ip(), addr.port());
+
+        match reader.id() {
+            0x00 => {
+                let packet = LoginServerboundLoginStart::read(&mut reader)?;
+
+                log!(info, "Player {}[uuid = {}; ip = {}] sent login_packet", packet.name, packet.uuid, addr_str);
+
+                // DEBUG: disconnect client
+                Self::disconnect(stream, state, String::from("Disconnected.\nLogin functionality is not implemented yet."));
+            }
+            _ => return Err(PacketHandleError::BadId(reader.id()))
+        }
+
+        Ok(())
+    }
+
+    fn disconnect(stream: &mut TcpStream, state: &mut MutexGuard<ConnectionState>, reason: String) {
+        match **state {
+            ConnectionState::Login => {
+                let login_disconnect_packet = LoginClientboundDisconnect::from_string(reason);
+                Self::send_packet_bytes(stream, &login_disconnect_packet.build());
+            }
+            _ => log!(warn, "Invalid state ({}) while sending disconnect packet.", **state)
+        }
     }
 }

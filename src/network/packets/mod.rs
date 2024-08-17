@@ -14,3 +14,16 @@ pub mod status {
         pub mod status_request;
     }
 }
+
+pub mod login {
+    pub mod clientbound {
+        pub mod disconnect;
+        pub mod encryption_request;
+        pub mod login_success;
+    }
+    pub mod serverbound {
+        pub mod encryption_response;
+        pub mod login_acknowledged;
+        pub mod login_start;
+    }
+}
