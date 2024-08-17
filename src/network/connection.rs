@@ -1,9 +1,9 @@
 use bytes::BytesMut;
 use json::object;
 
-use crate::{log, network::{packet_utils::read_varint, packets::handshaking::serverbound::handshake::{HandshakeNextState, HandshakingServerboundHandshake}}, utils::errors::PacketHandleError, CONFIG, LOGGER};
+use crate::{log, network::packets::handshaking::serverbound::handshake::{HandshakeNextState, HandshakingServerboundHandshake}, utils::{errors::PacketHandleError, packet_utils::read_varint}, CONFIG, LOGGER};
 use core::fmt;
-use std::{io::{Read, Write}, net::{Shutdown, TcpStream}, sync::{Arc, Mutex, MutexGuard}};
+use std::{io::{Read, Write}, net::{Shutdown, TcpStream}, sync::{Arc, Mutex}};
 
 use super::{packet::{ClientboundPacket, PacketReader, ServerboundPacket}, packets::{status::{clientbound::{ping_response::StatusClientboundPingResponse, status_response::StatusClientboundStatusResponse}, serverbound::ping_request::StatusServerboundPingRequest}, login::{serverbound::login_start::LoginServerboundLoginStart, clientbound::disconnect::LoginClientboundDisconnect}}};
 
@@ -33,6 +33,13 @@ impl fmt::Display for ConnectionState {
 pub struct Connection {
     stream: Arc<Mutex<TcpStream>>,
     state: Arc<Mutex<ConnectionState>>,
+    pub connection_info: Arc<Mutex<Option<ConnectionInfo>>>,
+}
+
+pub struct ConnectionInfo {
+    pub protocol_version: i32,
+    pub server_address: String,
+    pub server_port: u16, 
 }
 
 impl Connection {
@@ -40,14 +47,12 @@ impl Connection {
         Connection { 
             stream: Arc::new(Mutex::new(stream)),
             state: Arc::new(Mutex::new(ConnectionState::Handshaking)), 
+            connection_info: Arc::new(Mutex::new(None)),
         }
     }
 
     pub fn start_reading(&self) {
         let mut stream = self.stream.lock().unwrap();
-
-        let state_binding = Arc::clone(&self.state);
-        let mut state = state_binding.lock().unwrap();
         let address = stream.peer_addr().unwrap();
 
         let mut buf = [0u8; 1024];
@@ -61,13 +66,10 @@ impl Connection {
 
                     while let Some(reader) = Self::extract_packet_reader(&mut data_accumulator) {
                         let packet_id = reader.id();
+                        let state = self.state.lock().unwrap();
                         log!(debug, "Received packet with ID 0x{:x?} ({})", &packet_id, *state);
 
-                        if let Err(e) = match *state {
-                            ConnectionState::Handshaking => Self::handle_handshaking_packet(&mut stream, &mut state, reader),
-                            ConnectionState::Status => Self::handle_status_packet(&mut stream, reader),
-                            ConnectionState::Login => Self::handle_login_packet(&mut stream, &mut state, reader),
-                        } {
+                        if let Err(e) = self.handle_packet(reader) {
                             log!(warn, "Failed to handle packet 0x{:x?} ({}) for {}:{}: {}", packet_id, *state, address.ip(), address.port(), e);
                         }
                     }
@@ -96,33 +98,54 @@ impl Connection {
         None
     }
 
-    fn send_packet_bytes(stream: &mut TcpStream, data: &[u8]) {
+    fn send_packet_bytes(&self, data: &[u8]) {
+        let mut stream = self.stream.lock().unwrap();
         let address = stream.peer_addr().unwrap();
         log!(debug, "Sending packet ({} bytes) to {}:{}", data.len(), address.ip(), address.port());
         stream.write_all(data).unwrap();
     }
 
-    fn handle_handshaking_packet(stream: &mut TcpStream, state: &mut MutexGuard<ConnectionState>, mut reader: PacketReader) -> Result<(), PacketHandleError> {
-        let address = stream.peer_addr().unwrap();
+    fn get_addr(&self) -> String {
+        let addr = self.stream.lock().unwrap().peer_addr().unwrap();
+        format!("{}:{}", addr.ip(), addr.port())
+    }
 
+    fn handle_packet(&self, reader: PacketReader) -> Result<(), PacketHandleError> {
+        let state = self.state.lock().unwrap();
+        match *state {
+            ConnectionState::Handshaking => Ok(self.handle_handshaking_packet(reader)?),
+            ConnectionState::Status => Ok(self.handle_status_packet(reader)?),
+            ConnectionState::Login => Ok(self.handle_login_packet(reader)?),
+        }
+    }
+
+    fn handle_handshaking_packet(&self, mut reader: PacketReader) -> Result<(), PacketHandleError> {
         match reader.id() {
             0x00 => {
-                log!(debug, "Handshake from {}:{}:", address.ip(), address.port());
+                log!(debug, "Handshake from {}:", self.get_addr());
                 let packet = HandshakingServerboundHandshake::read(&mut reader)?;
                 log!(debug, "\tprotocol_version = {}", packet.protocol_version);
                 log!(debug, "\tserver_address = {}", packet.server_address);
                 log!(debug, "\tserver_port = {}", packet.server_port);
                 log!(debug, "\tnext_state = {}", packet.next_state);
 
+                let mut connection_info = self.connection_info.lock().unwrap();
+                *connection_info = Some(ConnectionInfo {
+                    protocol_version: packet.protocol_version,
+                    server_address: packet.server_address,
+                    server_port: packet.server_port,
+                });
+
+                let mut state = self.state.lock().unwrap();
                 match packet.next_state {
                     HandshakeNextState::Status => {
-                        **state = ConnectionState::Status;
+                        *state = ConnectionState::Status;
                     }
                     HandshakeNextState::Login => {
-                        **state = ConnectionState::Login;
+                        *state = ConnectionState::Login;
                     }
                     _ => {
-                        log!(warn, "Weird 'next_state' ({}) when handling handshake packet from {}:{}", packet.next_state, address.ip(), address.port());
+                        log!(warn, "Weird 'next_state' ({}) when handling handshake packet from {}", packet.next_state, self.get_addr());
                     }
                 }
             }
@@ -132,7 +155,7 @@ impl Connection {
         Ok(())
     }
 
-    fn handle_status_packet(stream: &mut TcpStream, mut reader: PacketReader) -> Result<(), PacketHandleError> {
+    fn handle_status_packet(&self, mut reader: PacketReader) -> Result<(), PacketHandleError> {
         match reader.id() {
             0x00 => {
                 let json_status_response = object! {
@@ -141,7 +164,7 @@ impl Connection {
                         protocol: crate::PROTOCOL_VERSION,
                     },
                     players: {
-                        max: CONFIG.status.max_players,
+                        max: CONFIG.server.max_players,
                         online: 69,
                         sample: []
                     },
@@ -155,7 +178,7 @@ impl Connection {
                     json_response: json_status_response.dump(),
                 };
 
-                Self::send_packet_bytes(stream, &status_response_packet.build());
+                self.send_packet_bytes(&status_response_packet.build());
             }
             0x01 => {
                 let client_timestamp = StatusServerboundPingRequest::read(&mut reader)?.timestamp;
@@ -164,7 +187,7 @@ impl Connection {
                     timestamp: client_timestamp
                 };
 
-                Self::send_packet_bytes(stream, &ping_response_packet.build());
+                self.send_packet_bytes(&ping_response_packet.build());
             }
             _ => return Err(PacketHandleError::BadId(reader.id()))
         }
@@ -172,18 +195,23 @@ impl Connection {
         Ok(())
     }
 
-    fn handle_login_packet(stream: &mut TcpStream, state: &mut MutexGuard<ConnectionState>, mut reader: PacketReader) -> Result<(), PacketHandleError> {
-        let addr = stream.peer_addr().unwrap();
-        let addr_str = format!("{}:{}", addr.ip(), addr.port());
-
+    fn handle_login_packet(&self, mut reader: PacketReader) -> Result<(), PacketHandleError> {
         match reader.id() {
             0x00 => {
                 let packet = LoginServerboundLoginStart::read(&mut reader)?;
 
-                log!(info, "Player {}[uuid = {}; ip = {}] sent login_packet", packet.name, packet.uuid, addr_str);
+                log!(info, "Player {}[uuid = {}; ip = {}] is logging in", packet.name, packet.uuid, self.get_addr());
+
+                let connection_info_ref = self.connection_info.lock().unwrap();
+                if let Some(connection_info) = &*connection_info_ref {
+                    if connection_info.protocol_version != crate::PROTOCOL_VERSION {
+                        self.disconnect(format!("Your protocol version ({}) doesn't match server's protocol version ({})", connection_info.protocol_version, crate::PROTOCOL_VERSION));
+                        return Ok(());
+                    }
+                }
 
                 // DEBUG: disconnect client
-                Self::disconnect(stream, state, String::from("Disconnected.\nLogin functionality is not implemented yet."));
+                self.disconnect(String::from("Login functionality is not implemented yet."));
             }
             _ => return Err(PacketHandleError::BadId(reader.id()))
         }
@@ -191,13 +219,13 @@ impl Connection {
         Ok(())
     }
 
-    fn disconnect(stream: &mut TcpStream, state: &mut MutexGuard<ConnectionState>, reason: String) {
-        match **state {
+    fn disconnect(&self, reason: String) {
+        match *self.state.lock().unwrap() {
             ConnectionState::Login => {
                 let login_disconnect_packet = LoginClientboundDisconnect::from_string(reason);
-                Self::send_packet_bytes(stream, &login_disconnect_packet.build());
+                self.send_packet_bytes(&login_disconnect_packet.build());
             }
-            _ => log!(warn, "Invalid state ({}) while sending disconnect packet.", **state)
+            _ => log!(warn, "Invalid state ({}) while sending disconnect packet.", *self.state.lock().unwrap())
         }
     }
 }

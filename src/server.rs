@@ -1,4 +1,4 @@
-use crate::{log, network::connection::Connection, LOGGER};
+use crate::{log, network::connection::Connection, LOGGER, CONFIG};
 use std::{net::TcpListener, thread};
 
 pub struct MinecraftServer {
@@ -13,6 +13,8 @@ impl MinecraftServer {
     }
 
     pub fn start_listening(&self) {
+        if !CONFIG.server.online_mode { log!(warn, "> Server is running in OFFLINE mode. ") }
+
         let listener = TcpListener::bind(&self.address).unwrap();
 
         let server_address = listener.local_addr().unwrap();

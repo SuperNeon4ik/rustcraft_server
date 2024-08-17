@@ -1,10 +1,7 @@
-use std::collections::HashMap;
-
 use bytes::{Buf, BufMut, BytesMut};
 use uuid::Uuid;
 use crate::utils::errors::PacketReadError;
-
-use super::{connection::ConnectionState, packet_utils::{read_string, read_varint, write_string, write_varint}, packets::{handshaking::serverbound::handshake::HandshakingServerboundHandshake, status::serverbound::{ping_request::StatusServerboundPingRequest, status_request::StatusServerboundStatusRequest}}};
+use crate::utils::packet_utils::{read_string, read_varint, write_string, write_varint};
 
 pub struct PacketReader {
     packet_id: i32,
@@ -72,7 +69,7 @@ impl PacketReader {
 
     pub fn read_ushort(&mut self) -> Result<u16, PacketReadError> {
         if self.data.remaining() < 2 { Err(PacketReadError::BufferUnderflow) }
-        else { Ok(self.data.get_u16_le()) }
+        else { Ok(self.data.get_u16_le()) } // TODO: This reads wrong value on my Windows laptop
     }
 
     pub fn read_int(&mut self) -> Result<i32, PacketReadError> {

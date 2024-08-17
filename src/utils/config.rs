@@ -15,12 +15,13 @@ pub struct Config {
 pub struct ServerConfig {
     pub ip: String,
     pub port: u16,
+    pub max_players: i32,
+    pub online_mode: bool,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct StatusConfig {
     pub version_prefix: String,
-    pub max_players: i32,
     pub motd: String,
 }
 
@@ -53,11 +54,12 @@ pub fn write_default_config(filename: &str) -> bool {
         server: ServerConfig { 
             ip: String::from("127.0.0.1"), 
             port: 25565,
+            max_players: 69, 
+            online_mode: true,
         },
         status: StatusConfig { 
             version_prefix: String::from("Rusty"),
             motd: String::from("Rusty experimental minecraft server!"), 
-            max_players: 69, 
         },
         misc: MiscConfig {
             log_level: LogLevel::Info,
