@@ -1,9 +1,9 @@
 use crate::network::packet::{ClientboundPacket, PacketWriter};
 
 pub struct LoginClientboundEncryptionRequest {
-    public_key: Vec<u8>,
-    verify_token: Vec<u8>,
-    should_authenticate: bool,
+    pub public_key: Vec<u8>,
+    pub verify_token: Vec<u8>,
+    pub should_authenticate: bool,
 }
 
 impl ClientboundPacket for LoginClientboundEncryptionRequest {

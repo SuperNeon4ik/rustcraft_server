@@ -1,17 +1,19 @@
-mod server;
-mod utils;
+mod crypto;
 mod network;
+mod utils;
+mod server;
 
-use std::thread;
+use std::{thread, sync::{Mutex, Arc}};
 
 use chrono::Local;
 use crossbeam_channel::{bounded, select, Receiver};
 use once_cell::sync::Lazy;
 use utils::{config::{read_config, write_default_config, Config}, logger::{LogLevel, Logger}};
-use server::MinecraftServer;
+use server::{MinecraftServer, ServerData};
 
 pub const VERSION: &str = "1.21";
 pub const PROTOCOL_VERSION: i32 = 767;
+pub const SESSION_HOST: &str = "https://sessionserver.mojang.com";
 
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     println!("Loading config.toml...");

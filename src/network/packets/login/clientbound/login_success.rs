@@ -3,16 +3,16 @@ use uuid::Uuid;
 use crate::network::packet::{ClientboundPacket, PacketWriter};
 
 pub struct LoginClientboundLoginSuccess {
-    uuid: Uuid,
-    username: String,
-    properties: Vec<LoginSuccessProperty>,
-    strict_error_handling: bool,
+    pub uuid: Uuid,
+    pub username: String,
+    pub properties: Vec<LoginSuccessProperty>,
+    pub strict_error_handling: bool,
 }
 
 pub struct LoginSuccessProperty {
-    name: String,
-    value: String,
-    signature: Option<String>,
+    pub name: String,
+    pub value: String,
+    pub signature: Option<String>,
 }
 
 impl ClientboundPacket for LoginClientboundLoginSuccess {
