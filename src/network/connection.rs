@@ -1,15 +1,10 @@
-use aes::Aes128;
 use aes::cipher::AsyncStreamCipher;
-use aes::cipher::BlockEncrypt;
-use aes::cipher::KeyInit;
-use aes::cipher::generic_array::GenericArray;
 use rand::Rng;
 use rand::thread_rng;
 use bytes::BytesMut;
 use json::object;
 use rsa::Pkcs1v15Encrypt;
 use rsa::pkcs8::EncodePublicKey;
-use rsa::{RsaPublicKey};
 use uuid::Uuid;
 
 use crate::crypto::aes_util;
@@ -328,7 +323,7 @@ impl Connection {
 
                     let username = self.name.lock().unwrap().clone();
                     if let Some(username) = username {
-                        match authenticate_player(username.to_owned(), &shared_secret, &public_key_der.as_bytes()) {
+                        match authenticate_player(username.to_owned(), &shared_secret, public_key_der.as_bytes()) {
                             Ok(response) => {
                                 let uuid = Uuid::parse_str(&response.id).unwrap();
                                 *self.uuid.lock().unwrap() = uuid;

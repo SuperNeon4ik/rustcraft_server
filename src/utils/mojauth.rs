@@ -1,4 +1,3 @@
-use crate::LOGGER;
 use serde_derive::Deserialize;
 use sha1::{Sha1, Digest};
 use crate::{SESSION_HOST, crypto::auth_hash::calc_hash};

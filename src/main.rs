@@ -3,13 +3,13 @@ mod network;
 mod utils;
 mod server;
 
-use std::{thread, sync::{Mutex, Arc}};
+use std::thread;
 
 use chrono::Local;
 use crossbeam_channel::{bounded, select, Receiver};
 use once_cell::sync::Lazy;
 use utils::{config::{read_config, write_default_config, Config}, logger::{LogLevel, Logger}};
-use server::{MinecraftServer, ServerData};
+use server::MinecraftServer;
 
 pub const VERSION: &str = "1.21";
 pub const PROTOCOL_VERSION: i32 = 767;
