@@ -95,8 +95,9 @@ impl Connection {
                 Ok(n) => {
                     let mut encryption_setting = self.encryption_setting.lock().unwrap();
                     if let EncryptionSetting::Encrypted(_, ref mut decryptor) = *encryption_setting {
-                        decryptor.clone().decrypt(&mut buf);
+                        decryptor.clone().decrypt(&mut buf); // TODO: Check if it's possible to remove cloning here
                     }
+                    
                     data_accumulator.extend_from_slice(&buf[..n]);
                     drop(encryption_setting);
                     drop(stream);
@@ -139,7 +140,7 @@ impl Connection {
         let mut data: Vec<u8> = data.to_vec();
         let mut encryption_setting = self.encryption_setting.lock().unwrap();
         if let EncryptionSetting::Encrypted(ref mut encryptor, _) = *encryption_setting {
-            encryptor.clone().encrypt(&mut data);
+            encryptor.clone().encrypt(&mut data); // TODO: Check if it's possible to remove cloning here
         }
 
         stream.write_all(&data).unwrap();
@@ -196,18 +197,11 @@ impl Connection {
                     server_port: packet.server_port,
                 });
 
-                let state_binding = Arc::clone(&self.state);
-                let mut state = state_binding.lock().unwrap();
+                let mut state = self.state.lock().unwrap();
                 match packet.next_state {
-                    HandshakeNextState::Status => {
-                        *state = ConnectionState::Status;
-                    }
-                    HandshakeNextState::Login => {
-                        *state = ConnectionState::Login;
-                    }
-                    _ => {
-                        log!(warn, "Weird 'next_state' ({}) when handling handshake packet from {}", packet.next_state, self.get_addr());
-                    }
+                    HandshakeNextState::Status => *state = ConnectionState::Status,
+                    HandshakeNextState::Login => *state = ConnectionState::Login,
+                    _ => log!(warn, "Weird 'next_state' ({}) when handling handshake packet from {}", packet.next_state, self.get_addr()),
                 }
             }
             _ => return Err(PacketHandleError::BadId(reader.id()))
@@ -264,8 +258,7 @@ impl Connection {
                 *self.name.lock().unwrap() = Some(packet.name);
                 *self.uuid.lock().unwrap() = packet.uuid;
 
-                let connection_info_ref = self.connection_info.lock().unwrap();
-                if let Some(connection_info) = &*connection_info_ref {
+                if let Some(connection_info) = &*self.connection_info.lock().unwrap() {
                     if connection_info.protocol_version != crate::PROTOCOL_VERSION {
                         self.disconnect(format!("Your protocol version ({}) doesn't match server's protocol version ({})", connection_info.protocol_version, crate::PROTOCOL_VERSION));
                         return Ok(());
@@ -289,8 +282,7 @@ impl Connection {
 
                 match &*self.verify_token.lock().unwrap() {
                     Some(verify_token) => {
-                        let encrypted_verify_token = packet.verify_token;
-                        let decrypted_verify_token = self.server_data.private_key.decrypt(Pkcs1v15Encrypt, &encrypted_verify_token).unwrap();
+                        let decrypted_verify_token = self.server_data.private_key.decrypt(Pkcs1v15Encrypt, &packet.verify_token).unwrap();
 
                         if *verify_token != decrypted_verify_token {
                             log!(warn, "Verify tokens for {} didn't match.", self.get_addr());
@@ -305,10 +297,9 @@ impl Connection {
                     }
                 };
 
-                let encrypted_shared_secret = packet.shared_secret;
-                let shared_secret = self.server_data.private_key.decrypt(Pkcs1v15Encrypt, &encrypted_shared_secret).unwrap();
+                let shared_secret = self.server_data.private_key.decrypt(Pkcs1v15Encrypt, &packet.shared_secret).unwrap();
 
-                *self.verify_token.lock().unwrap() = Some(shared_secret.clone());
+                *self.verify_token.lock().unwrap() = None;
                 let (encryptor, decryptor) = aes_util::initialize(&shared_secret); // turn on encryption
                 *self.encryption_setting.lock().unwrap() = EncryptionSetting::Encrypted(Box::new(encryptor), Box::new(decryptor));
 
@@ -319,9 +310,8 @@ impl Connection {
                     log!(verbose, "Authenticating {}...", self.get_addr());
 
                     let public_key_der = self.server_data.public_key.to_public_key_der().unwrap();
-                    // let encrypted_public_key = aes_util::encrypt(&shared_secret, public_key_der.as_bytes());
-
                     let username = self.name.lock().unwrap().clone();
+
                     if let Some(username) = username {
                         match authenticate_player(username.to_owned(), &shared_secret, public_key_der.as_bytes()) {
                             Ok(response) => {
@@ -388,12 +378,13 @@ impl Connection {
     }
 
     fn disconnect(&self, reason: String) {
-        match *self.state.lock().unwrap() {
+        let connection_state = self.state.lock().unwrap();
+        match *connection_state {
             ConnectionState::Login => {
                 let login_disconnect_packet = LoginClientboundDisconnect::from_string(reason);
                 self.send_packet_bytes(&login_disconnect_packet.build());
             }
-            _ => log!(warn, "Invalid state ({}) while sending disconnect packet.", *self.state.lock().unwrap())
+            _ => log!(warn, "Invalid state ({}) while sending disconnect packet.", *connection_state)
         }
     }
 
