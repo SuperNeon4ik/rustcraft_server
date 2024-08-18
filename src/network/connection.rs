@@ -1,4 +1,5 @@
 use aes::Aes128;
+use aes::cipher::AsyncStreamCipher;
 use aes::cipher::BlockEncrypt;
 use aes::cipher::KeyInit;
 use aes::cipher::generic_array::GenericArray;
@@ -12,6 +13,8 @@ use rsa::{RsaPublicKey};
 use uuid::Uuid;
 
 use crate::crypto::aes_util;
+use crate::crypto::aes_util::Aes128Cfb8Dec;
+use crate::crypto::aes_util::Aes128Cfb8Enc;
 use crate::network::packets::login::clientbound::login_success::LoginClientboundLoginSuccess;
 use crate::network::packets::login::clientbound::login_success::LoginSuccessProperty;
 use crate::utils::mojauth::authenticate_player;
@@ -49,7 +52,8 @@ pub struct Connection {
     stream: Arc<Mutex<TcpStream>>,
     state: Arc<Mutex<ConnectionState>>,
     server_data: ServerData,
-    shared_secret: Mutex<Option<Vec<u8>>>,
+    verify_token: Mutex<Option<Vec<u8>>>,
+    encryption_setting: Mutex<EncryptionSetting>,
     name: Mutex<Option<String>>,
     uuid: Mutex<Uuid>,
     pub connection_info: Arc<Mutex<Option<ConnectionInfo>>>,
@@ -61,13 +65,19 @@ pub struct ConnectionInfo {
     pub server_port: u16, 
 }
 
+enum EncryptionSetting {
+    Disabled,
+    Encrypted(Aes128Cfb8Enc, Aes128Cfb8Dec),
+}
+
 impl Connection {
     pub fn new(stream: TcpStream, server_data: &ServerData) -> Self {
         Connection { 
             stream: Arc::new(Mutex::new(stream)),
             state: Arc::new(Mutex::new(ConnectionState::Handshaking)), 
             server_data: server_data.clone(),
-            shared_secret: Mutex::new(None),
+            verify_token: Mutex::new(None),
+            encryption_setting: Mutex::new(EncryptionSetting::Disabled),
             name: Mutex::new(None),
             uuid: Mutex::new(Uuid::new_v4()),
             connection_info: Arc::new(Mutex::new(None)),
@@ -86,10 +96,15 @@ impl Connection {
             match stream.read(&mut buf) {
                 Ok(0) => break,
                 Ok(n) => {
+                    let mut encryption_setting = self.encryption_setting.lock().unwrap();
+                    if let EncryptionSetting::Encrypted(_, ref mut decryptor) = *encryption_setting {
+                        decryptor.clone().decrypt(&mut buf);
+                    }
                     data_accumulator.extend_from_slice(&buf[..n]);
+                    drop(encryption_setting);
                     drop(stream);
 
-                    while let Some(reader) = Self::extract_packet_reader(&mut data_accumulator) {
+                    while let Some(reader) = self.extract_packet_reader(&mut data_accumulator) {
                         let packet_id = reader.id();
                         log!(debug, "Received packet with ID 0x{:x?}", &packet_id);
 
@@ -106,7 +121,7 @@ impl Connection {
         self.stream.lock().unwrap().shutdown(Shutdown::Both).unwrap();
     }
 
-    fn extract_packet_reader(data: &mut Vec<u8>) -> Option<PacketReader> {
+    fn extract_packet_reader(&self, data: &mut Vec<u8>) -> Option<PacketReader> {
         let mut buf = BytesMut::from(&data[..]);
         if let Ok(packet_length) = read_varint(&mut buf) {
             if buf.len() >= packet_length as usize {
@@ -124,7 +139,13 @@ impl Connection {
 
     fn send_packet_bytes(&self, data: &[u8]) {
         let mut stream = self.stream.lock().unwrap();
-        stream.write_all(data).unwrap();
+        let mut data: Vec<u8> = data.to_vec();
+        let mut encryption_setting = self.encryption_setting.lock().unwrap();
+        if let EncryptionSetting::Encrypted(ref mut encryptor, _) = *encryption_setting {
+            encryptor.clone().encrypt(&mut data);
+        }
+
+        stream.write_all(&data).unwrap();
         drop(stream);
         log!(debug, "Sent packet ({} bytes) to {}", data.len(), self.get_addr());
     }
@@ -252,7 +273,7 @@ impl Connection {
                 let verify_token = Self::generate_verify_token(4);
                 log!(debug, "Verify token ({} bytes): {:x?}", verify_token.len(), verify_token);
 
-                *self.shared_secret.lock().unwrap() = Some(verify_token.clone());
+                *self.verify_token.lock().unwrap() = Some(verify_token.clone());
                 let encryption_request_packet = LoginClientboundEncryptionRequest {
                     public_key: public_key_der.to_vec(),
                     verify_token,
@@ -264,10 +285,12 @@ impl Connection {
             0x01 => {
                 let packet = LoginServerboundEncryptionResponse::read(&mut reader)?;
 
-                match &*self.shared_secret.lock().unwrap() {
+                match &*self.verify_token.lock().unwrap() {
                     Some(verify_token) => {
                         let encrypted_verify_token = packet.verify_token;
                         let decrypted_verify_token = self.server_data.private_key.decrypt(Pkcs1v15Encrypt, &encrypted_verify_token).unwrap();
+
+                        log!(debug, "Decrypted verify token ({} bytes): {:x?}", decrypted_verify_token.len(), decrypted_verify_token);
 
                         if *verify_token != decrypted_verify_token {
                             log!(warn, "Verify tokens for {} didn't match.", self.get_addr());
@@ -287,7 +310,9 @@ impl Connection {
 
                 log!(debug, "Shared secret ({} bytes): {:x?}", shared_secret.len(), shared_secret);
 
-                *self.shared_secret.lock().unwrap() = Some(shared_secret.clone());
+                *self.verify_token.lock().unwrap() = Some(shared_secret.clone());
+                let (encryptor, decryptor) = aes_util::initialize(&shared_secret); // turn on encryption
+                *self.encryption_setting.lock().unwrap() = EncryptionSetting::Encrypted(encryptor, decryptor);
 
                 log!(verbose, "Encryption with {} is set up.", self.get_addr());
 
@@ -324,7 +349,7 @@ impl Connection {
                                     strict_error_handling: false,
                                 };
 
-                                self.send_packet_bytes(&login_success_packet.build()); // TODO: This should already get sent with encryption on
+                                self.send_packet_bytes(&login_success_packet.build());
                             },
                             Err(e) => {
                                 log!(error, "Failed to authenticate player {}[{}]: {}", username, self.get_addr(), e);
@@ -338,6 +363,20 @@ impl Connection {
                         self.disconnect("Failed to authenticate".to_owned());
                         return Ok(());
                     }
+                }
+                else {
+                    // Authentication skipped (offline mode)
+                    let uuid = *self.uuid.lock().unwrap();
+                    let username = (*self.name.lock().unwrap().clone().unwrap()).to_string();
+
+                    let login_success_packet = LoginClientboundLoginSuccess {
+                        uuid,
+                        username,
+                        properties: Vec::new(),
+                        strict_error_handling: false,
+                    };
+
+                    self.send_packet_bytes(&login_success_packet.build());
                 }
             }
             0x03 => {
