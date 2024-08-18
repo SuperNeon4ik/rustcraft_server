@@ -64,7 +64,7 @@ pub struct ConnectionInfo {
 
 enum EncryptionSetting {
     Disabled,
-    Encrypted(Aes128Cfb8Enc, Aes128Cfb8Dec),
+    Encrypted(Box<Aes128Cfb8Enc>, Box<Aes128Cfb8Dec>),
 }
 
 impl Connection {
@@ -310,7 +310,7 @@ impl Connection {
 
                 *self.verify_token.lock().unwrap() = Some(shared_secret.clone());
                 let (encryptor, decryptor) = aes_util::initialize(&shared_secret); // turn on encryption
-                *self.encryption_setting.lock().unwrap() = EncryptionSetting::Encrypted(encryptor, decryptor);
+                *self.encryption_setting.lock().unwrap() = EncryptionSetting::Encrypted(Box::new(encryptor), Box::new(decryptor));
 
                 log!(verbose, "Encryption with {} is set up.", self.get_addr());
 

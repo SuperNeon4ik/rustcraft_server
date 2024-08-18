@@ -193,6 +193,7 @@ pub trait ClientboundPacket {
 }
 
 pub trait ServerboundPacket {
+    #[allow(unused)]
     fn packet_id() -> i32 
     where 
         Self: Sized;
