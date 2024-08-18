@@ -30,7 +30,8 @@ impl MinecraftServer {
     }
 
     pub fn start_listening(&self) {
-        if !CONFIG.server.online_mode { log!(warn, "> Server is running in OFFLINE mode. ") }
+        if CONFIG.server.online_mode { log!(verbose, "SESSION_HOST = '{}'", crate::SESSION_HOST) }
+        else { log!(warn, "> Server is running in OFFLINE mode. ") }
 
         let listener = TcpListener::bind(&self.address).unwrap();
         let server_address = listener.local_addr().unwrap();

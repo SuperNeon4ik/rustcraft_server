@@ -25,13 +25,14 @@ use std::{io::{Read, Write}, net::{Shutdown, TcpStream}, sync::{Arc, Mutex}};
 use super::packets::login::serverbound::encryption_response::LoginServerboundEncryptionResponse;
 use super::{packet::{ClientboundPacket, PacketReader, ServerboundPacket}, packets::{status::{clientbound::{ping_response::StatusClientboundPingResponse, status_response::StatusClientboundStatusResponse}, serverbound::ping_request::StatusServerboundPingRequest}, login::{serverbound::login_start::LoginServerboundLoginStart, clientbound::disconnect::LoginClientboundDisconnect}}};
 
+#[allow(unused)]
 #[derive(Clone, PartialEq)]
 pub enum ConnectionState {
     Handshaking,
     Status,
     Login,
-    // Configuration,
-    // Play,
+    Configuration,
+    Play,
 }
 
 impl fmt::Display for ConnectionState {
@@ -40,8 +41,8 @@ impl fmt::Display for ConnectionState {
             Self::Handshaking => "Handshaking",
             Self::Status => "Status",
             Self::Login => "Login",
-            // Self::Configuration => "Configuration",
-            // Self::Play => "Play",
+            Self::Configuration => "Configuration",
+            Self::Play => "Play",
         };
 
         write!(f, "{}", state)
@@ -59,6 +60,7 @@ pub struct Connection {
     pub connection_info: Arc<Mutex<Option<ConnectionInfo>>>,
 }
 
+#[allow(unused)]
 pub struct ConnectionInfo {
     pub protocol_version: i32,
     pub server_address: String,
@@ -171,6 +173,14 @@ impl Connection {
                 drop(state_ref);
                 Ok(self.handle_login_packet(reader)?)
             },
+            ConnectionState::Configuration => {
+                drop(state_ref);
+                Ok(())
+            },
+            ConnectionState::Play => {
+                drop(state_ref);
+                Ok(())
+            }
         }
     }
 
@@ -268,10 +278,7 @@ impl Connection {
                 }
 
                 let public_key_der = self.server_data.public_key.to_public_key_der().unwrap();
-                log!(debug, "Public key DER ({} bytes): {:x?}", public_key_der.len(), public_key_der.to_vec());
-
                 let verify_token = Self::generate_verify_token(4);
-                log!(debug, "Verify token ({} bytes): {:x?}", verify_token.len(), verify_token);
 
                 *self.verify_token.lock().unwrap() = Some(verify_token.clone());
                 let encryption_request_packet = LoginClientboundEncryptionRequest {
@@ -290,8 +297,6 @@ impl Connection {
                         let encrypted_verify_token = packet.verify_token;
                         let decrypted_verify_token = self.server_data.private_key.decrypt(Pkcs1v15Encrypt, &encrypted_verify_token).unwrap();
 
-                        log!(debug, "Decrypted verify token ({} bytes): {:x?}", decrypted_verify_token.len(), decrypted_verify_token);
-
                         if *verify_token != decrypted_verify_token {
                             log!(warn, "Verify tokens for {} didn't match.", self.get_addr());
                             self.disconnect("Verify tokens didn't match.".to_owned());
@@ -307,8 +312,6 @@ impl Connection {
 
                 let encrypted_shared_secret = packet.shared_secret;
                 let shared_secret = self.server_data.private_key.decrypt(Pkcs1v15Encrypt, &encrypted_shared_secret).unwrap();
-
-                log!(debug, "Shared secret ({} bytes): {:x?}", shared_secret.len(), shared_secret);
 
                 *self.verify_token.lock().unwrap() = Some(shared_secret.clone());
                 let (encryptor, decryptor) = aes_util::initialize(&shared_secret); // turn on encryption
@@ -380,6 +383,7 @@ impl Connection {
                 }
             }
             0x03 => {
+                *self.state.lock().unwrap() = ConnectionState::Configuration;
                 log!(verbose, "Client {} reached Login Acknowledged!!!", self.get_addr());
             }
             _ => return Err(PacketHandleError::BadId(reader.id()))

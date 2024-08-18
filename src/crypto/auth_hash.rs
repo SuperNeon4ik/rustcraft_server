@@ -1,11 +1,6 @@
 use sha1::{Digest, Sha1};
 
 // SOURCE: https://gist.github.com/roccodev/8fa130f1946f89702f799f89b8469bc9?permalink_comment_id=4561673#gistcomment-4561673
-pub fn calc_hash_from_str(name: &str) -> String {
-    let sha = Sha1::new().chain_update(name);
-    calc_hash(sha)
-}
-
 pub fn calc_hash(sha: Sha1) -> String {
     let mut hash: [u8; 20] = sha.finalize().into();
     let negative = (hash[0] & 0x80) == 0x80;
@@ -37,14 +32,15 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_cases() {
+    fn test_calc_hash() {
         let pairs = &[
             ("Notch", "4ed1f46bbe04bc756bcb17c0c7ce3e4632f06a48"),
             ("jeb_", "-7c9d5b0044c130109a5d7b5fb5c317c02b4e28c1"),
             ("simon", "88e16a1019277b15d58faf0541e11910eb756f6"),
         ];
         for (input, output) in pairs {
-            assert_eq!(&calc_hash_from_str(input), output);
+            let sha = Sha1::new().chain_update(input);
+            assert_eq!(&calc_hash(sha), output);
         }
     }
 }

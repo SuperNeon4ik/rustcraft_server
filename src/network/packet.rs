@@ -13,6 +13,7 @@ pub struct PacketWriter {
     data: BytesMut,
 }
 
+#[allow(unused)]
 impl PacketReader {
     pub fn new(data: &[u8]) -> Result<Self, PacketReadError> {
         let mut buf = BytesMut::from(data);
@@ -62,6 +63,7 @@ impl PacketReader {
         self.data.copy_to_slice(&mut bytes);
         Ok(bytes)
     }
+    
     pub fn read_short(&mut self) -> Result<i16, PacketReadError> {
         if self.data.remaining() < 2 { Err(PacketReadError::BufferUnderflow) }
         else { Ok(self.data.get_i16_le()) }
@@ -93,6 +95,7 @@ impl PacketReader {
     }
 }
 
+#[allow(unused)]
 impl PacketWriter {
     pub fn new(packet_id: i32) -> Self {
         PacketWriter {
