@@ -66,12 +66,12 @@ impl PacketReader {
     
     pub fn read_short(&mut self) -> Result<i16, PacketReadError> {
         if self.data.remaining() < 2 { Err(PacketReadError::BufferUnderflow) }
-        else { Ok(self.data.get_i16_le()) }
+        else { Ok(self.data.get_i16()) }
     }
 
     pub fn read_ushort(&mut self) -> Result<u16, PacketReadError> {
         if self.data.remaining() < 2 { Err(PacketReadError::BufferUnderflow) }
-        else { Ok(self.data.get_u16_le()) } // TODO: This reads wrong value on my Windows laptop
+        else { Ok(self.data.get_u16()) }
     }
 
     pub fn read_int(&mut self) -> Result<i32, PacketReadError> {
@@ -145,12 +145,12 @@ impl PacketWriter {
     }
 
     pub fn write_short(&mut self, n: i16) -> &Self {
-        self.data.put_i16_le(n);
+        self.data.put_i16(n);
         self
     }
 
     pub fn write_ushort(&mut self, n: u16) -> &Self {
-        self.data.put_u16_le(n);
+        self.data.put_u16(n);
         self
     }
 
