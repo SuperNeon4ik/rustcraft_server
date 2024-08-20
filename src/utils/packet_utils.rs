@@ -7,7 +7,7 @@ pub fn read_varint(buf: &mut dyn Buf) -> Result<i32, PacketReadError> {
     let mut value = 0;
     let mut shift = 0;
     
-    while shift < 35 {
+    while shift < 32 {
         if buf.has_remaining() {
             let byte = buf.get_u8();
             value |= ((byte & 0x7F) as i32) << shift;
@@ -33,6 +33,41 @@ pub fn write_varint(buf: &mut dyn BufMut, value: i32) {
 
         buf.put_u8(((value & 0x7F) | 0x80) as u8);
         value = ((value as u32) >> 7) as i32;
+    }
+}
+
+#[allow(unused)]
+pub fn read_varlong(buf: &mut dyn Buf) -> Result<i64, PacketReadError> {
+    let mut value = 0;
+    let mut shift = 0;
+    
+    while shift < 64 {
+        if buf.has_remaining() {
+            let byte = buf.get_u8();
+            value |= ((byte & 0x7F) as i64) << shift;
+            if (byte & 0x80) == 0 {
+                return Ok(value);
+            }
+            shift += 7;
+        } else {
+            return Err(PacketReadError::EmptyBuf);
+        }
+    }
+    
+    Err(PacketReadError::TooLong)
+}
+
+#[allow(unused)]
+pub fn write_varlong(buf: &mut dyn BufMut, value: i64) {
+    let mut value = value;
+    loop {
+        if (value & !0x7F) == 0 {
+            buf.put_u8(value as u8);
+            return;
+        }
+
+        buf.put_u8(((value & 0x7F) | 0x80) as u8);
+        value = ((value as u64) >> 7) as i64;
     }
 }
 

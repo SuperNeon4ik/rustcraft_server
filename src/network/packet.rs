@@ -43,8 +43,8 @@ impl PacketReader {
 
     pub fn read_uuid(&mut self) -> Result<Uuid, PacketReadError> {
         if self.data.remaining() < 16 { return Err(PacketReadError::BufferUnderflow); }
-        let encoded_uuid = self.data.get_u128_le();
-        Ok(Uuid::from_u128_le(encoded_uuid))
+        let encoded_uuid = self.data.get_u128();
+        Ok(Uuid::from_u128(encoded_uuid))
     }
 
     pub fn read_byte(&mut self) -> Result<i8, PacketReadError> {
@@ -76,22 +76,22 @@ impl PacketReader {
 
     pub fn read_int(&mut self) -> Result<i32, PacketReadError> {
         if self.data.remaining() < 4 { Err(PacketReadError::BufferUnderflow) }
-        else { Ok(self.data.get_i32_le()) }
+        else { Ok(self.data.get_i32()) }
     }
 
     pub fn read_long(&mut self) -> Result<i64, PacketReadError> {
         if self.data.remaining() < 8 { Err(PacketReadError::BufferUnderflow) }
-        else { Ok(self.data.get_i64_le()) }
+        else { Ok(self.data.get_i64()) }
     }
 
     pub fn read_float(&mut self) -> Result<f32, PacketReadError> {
         if self.data.remaining() < 4 { Err(PacketReadError::BufferUnderflow) }
-        else { Ok(self.data.get_f32_le()) }
+        else { Ok(self.data.get_f32()) }
     }
 
     pub fn read_double(&mut self) -> Result<f64, PacketReadError> {
         if self.data.remaining() < 8 { Err(PacketReadError::BufferUnderflow) }
-        else { Ok(self.data.get_f64_le()) }
+        else { Ok(self.data.get_f64()) }
     }
 }
 
@@ -119,7 +119,7 @@ impl PacketWriter {
     }
 
     pub fn write_uuid(&mut self, uuid: Uuid) -> &Self {
-        self.data.put_u128_le(uuid.as_u128());
+        self.data.put_u128(uuid.as_u128());
         self
     }
 
@@ -155,22 +155,22 @@ impl PacketWriter {
     }
 
     pub fn write_int(&mut self, n: i32) -> &Self {
-        self.data.put_i32_le(n);
+        self.data.put_i32(n);
         self
     }
 
     pub fn write_long(&mut self, n: i64) -> &Self {
-        self.data.put_i64_le(n);
+        self.data.put_i64(n);
         self
     }
 
     pub fn write_float(&mut self, val: f32) -> &Self {
-        self.data.put_f32_le(val);
+        self.data.put_f32(val);
         self
     }
 
     pub fn write_double(&mut self, val: f64) -> &Self {
-        self.data.put_f64_le(val);
+        self.data.put_f64(val);
         self
     }
 
