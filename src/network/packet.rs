@@ -1,7 +1,8 @@
 use bytes::{Buf, BufMut, BytesMut};
 use uuid::Uuid;
+use crate::custom_types::identifier::Identifier;
 use crate::utils::errors::PacketReadError;
-use crate::utils::packet_utils::{read_string, read_varint, write_string, write_varint};
+use crate::utils::packet_utils::{read_string, read_varint, read_varlong, write_string, write_varint, write_varlong};
 
 pub struct PacketReader {
     packet_id: i32,
@@ -35,6 +36,10 @@ impl PacketReader {
 
     pub fn read_varint(&mut self) -> Result<i32, PacketReadError> {
         read_varint(&mut self.data)
+    }
+
+    pub fn read_varlong(&mut self) -> Result<i64, PacketReadError> {
+        read_varlong(&mut self.data)
     }
 
     pub fn read_string(&mut self) -> Result<String, PacketReadError> {
@@ -113,6 +118,11 @@ impl PacketWriter {
         self
     }
 
+    pub fn write_varlong(&mut self, n: i64) -> &Self {
+        write_varlong(&mut self.data, n);
+        self
+    }
+
     pub fn write_string(&mut self, text: &str) -> &Self {
         write_string(&mut self.data, text);
         self
@@ -120,6 +130,11 @@ impl PacketWriter {
 
     pub fn write_uuid(&mut self, uuid: Uuid) -> &Self {
         self.data.put_u128(uuid.as_u128());
+        self
+    }
+
+    pub fn write_identifier(&mut self, val: Identifier) -> &Self {
+        self.write_string(&val.to_string());
         self
     }
 

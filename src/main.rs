@@ -1,4 +1,5 @@
 mod crypto;
+mod custom_types;
 mod network;
 mod utils;
 mod server;
