@@ -52,6 +52,12 @@ impl PacketReader {
         Ok(Uuid::from_u128(encoded_uuid))
     }
 
+    pub fn read_boolean(&mut self) -> Result<bool, PacketReadError> {
+        if self.data.remaining() < 1 { return Err(PacketReadError::BufferUnderflow); }
+        let val = self.data.get_u8();
+        Ok(val == 0x01)
+    }
+
     pub fn read_byte(&mut self) -> Result<i8, PacketReadError> {
         if self.data.remaining() < 1 { Err(PacketReadError::BufferUnderflow) }
         else { Ok(self.data.get_i8()) }
@@ -133,7 +139,7 @@ impl PacketWriter {
         self
     }
 
-    pub fn write_identifier(&mut self, val: Identifier) -> &Self {
+    pub fn write_identifier(&mut self, val: &Identifier) -> &Self {
         self.write_string(&val.to_string());
         self
     }
