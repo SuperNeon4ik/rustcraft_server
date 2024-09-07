@@ -9,9 +9,9 @@ Meanwhile you should check out [Dockyard](https://github.com/DockyardMC/Dockyard
 
 ## Progress
 The project is currently no use for **any** environment. 
-- [v] Handshaking
-- [v] Status *(Server list)*
-- [v] Login *(Encryption & online mode)*
+- [x] Handshaking
+- [x] Status *(Server list)*
+- [x] Login *(Encryption & online mode)*
 - [ ] Configuration *(Working on this rn...)*
 - [ ] Actually join a world
 - [ ] Proper packet handling
