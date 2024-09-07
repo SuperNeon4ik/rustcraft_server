@@ -1152,6 +1152,7 @@ dependencies = [
  "bytes",
  "cfb8",
  "chrono",
+ "cipher",
  "colored",
  "crossbeam-channel",
  "ctrlc",

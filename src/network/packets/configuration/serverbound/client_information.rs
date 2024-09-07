@@ -1,3 +1,5 @@
+use core::fmt;
+
 use crate::{custom_types::bitmasks::DisplayedSkinParts, network::packet::{PacketReader, ServerboundPacket}, utils::errors::PacketReadError};
 
 pub struct ConfigurationServerboundClientInformation {
@@ -17,9 +19,30 @@ pub enum ClientChatMode {
     Hidden,
 }
 
+impl fmt::Display for ClientChatMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let msg = match self {
+            ClientChatMode::Enabled => "Enable",
+            ClientChatMode::CommandsOnly => "Commands only",
+            ClientChatMode::Hidden => "Hidden",
+        };
+        write!(f, "{}", msg)
+    }
+}
+
 pub enum MainHand {
     Left,
     Right,
+}
+
+impl fmt::Display for MainHand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let msg = match self {
+            MainHand::Left => "Left",
+            MainHand::Right => "Right",
+        };
+        write!(f, "{}", msg)
+    }
 }
 
 impl ServerboundPacket for ConfigurationServerboundClientInformation {

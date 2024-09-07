@@ -98,6 +98,27 @@ pub fn write_string(buf: &mut dyn BufMut, data: &str) {
 mod tests {
     use super::*;
     use bytes::BytesMut;
+    use rand::Rng;
+
+    #[test]
+    fn test_varint_random() {
+        let mut rng = rand::thread_rng();
+
+        for _ in 0..100000 {
+            let random_value: i32 = rng.gen();
+
+            let mut buf = BytesMut::new();
+            write_varint(&mut buf, random_value);
+
+            // append trash
+            buf.put_u8(0x12);
+            buf.put_u8(0x32);
+            buf.put_u8(0xFF);
+            
+            let read_value = read_varint(&mut buf).unwrap();
+            assert_eq!(random_value, read_value);
+        }
+    }
 
     #[test]
     fn test_read_varint_single_byte() {

@@ -44,7 +44,7 @@ impl MinecraftServer {
                     let address = stream.peer_addr().unwrap();
                     log!(verbose, "Received a connection: {}:{}", address.ip(), address.port());
 
-                    let conn = Connection::new(stream, &self.server_data);
+                    let mut conn = Connection::new(stream, &self.server_data);
                     thread::spawn(move || { 
                         conn.start_reading();
                     });
