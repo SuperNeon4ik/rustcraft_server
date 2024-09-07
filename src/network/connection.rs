@@ -136,7 +136,6 @@ impl Connection {
     fn extract_packet_reader(&self, data: &mut Vec<u8>) -> Option<PacketReader> {
         let mut buf = BytesMut::from(&data[..]);
         if let Ok(packet_length) = read_varint(&mut buf) {
-            log!(debug, "Next packet length is {} bytes, we have {} bytes", packet_length, data.len());
             if buf.len() >= packet_length as usize {
                 data.drain(..(data.len() - buf.len()));
                 let packet: Vec<u8> = data.drain(..packet_length as usize).collect();
@@ -439,7 +438,7 @@ impl Connection {
             },
             0x02 => {
                 let packet = ConfigurationServerboundPluginMessage::read(&mut reader)?;
-                log!(debug, "Recieved plugin message at '{}' ({} bytes)", packet.channel, packet.data.len());
+                log!(debug, "Recieved plugin message at '{}' ({} bytes): {:x?}", packet.channel, packet.data.len(), packet.data);
             }
             _ => return Err(PacketHandleError::BadId(reader.id()))
         }
