@@ -1,5 +1,4 @@
 use std::fmt;
-
 use regex::Regex;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -33,6 +32,18 @@ impl Identifier {
             namespace: namespace.to_string(),
             value: value.to_string(),
         })
+    }
+
+    pub fn from_string(input: &str) -> Result<Self, String> {
+        let parts: Vec<&str> = input.split(':').collect();
+        if parts.len() == 2 {
+            let namespace = parts[0];
+            let value = parts[1];
+            Ok(Identifier::new(Some(namespace), value)?)
+        }
+        else {
+            Err("Invalid Identifier format".to_owned())
+        }
     }
 
     pub fn namespace(&self) -> &str {

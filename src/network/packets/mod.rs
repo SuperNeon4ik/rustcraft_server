@@ -9,6 +9,7 @@ pub mod configuration {
         pub mod acknowledge_finish_configuration;
         pub mod client_information;
         pub mod keep_alive;
+        pub mod plugin_message;
     }
 }
 

@@ -13,6 +13,7 @@ pub enum PacketReadError {
     TooLong,
     Utf8Error,
     UnexpectedValue,
+    ConvertationIssue(String),
 }
 
 #[derive(Debug)]
@@ -44,6 +45,7 @@ impl fmt::Display for PacketReadError {
             Self::TooLong => "Too long",
             Self::Utf8Error => "UTF-8 Error",
             Self::UnexpectedValue => "Unexpected value",
+            Self::ConvertationIssue(details) => &("Convertation issue: ".to_owned() + details)
         };
 
         write!(f, "{}", msg)

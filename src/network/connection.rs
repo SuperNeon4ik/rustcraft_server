@@ -20,6 +20,7 @@ use std::{io::{Read, Write}, net::{Shutdown, TcpStream}, sync::{Arc, Mutex}};
 
 use super::packets::configuration::clientbound::disconnect::ConfigurationClientboundDisconnect;
 use super::packets::configuration::serverbound::client_information::ConfigurationServerboundClientInformation;
+use super::packets::configuration::serverbound::plugin_message::ConfigurationServerboundPluginMessage;
 use super::packets::login::serverbound::encryption_response::LoginServerboundEncryptionResponse;
 use super::{packet::{ClientboundPacket, PacketReader, ServerboundPacket}, packets::{status::{clientbound::{ping_response::StatusClientboundPingResponse, status_response::StatusClientboundStatusResponse}, serverbound::ping_request::StatusServerboundPingRequest}, login::{serverbound::login_start::LoginServerboundLoginStart, clientbound::disconnect::LoginClientboundDisconnect}}};
 
@@ -435,6 +436,10 @@ impl Connection {
                 log!(debug, "\tMain hand: {}", packet.main_hand);
                 log!(debug, "\tEnable text filtering: {}", packet.enable_text_filtering);
                 log!(debug, "\tAllow server listings: {}", packet.allow_server_listings);
+            },
+            0x02 => {
+                let packet = ConfigurationServerboundPluginMessage::read(&mut reader)?;
+                log!(debug, "Recieved plugin message at '{}' ({} bytes)", packet.channel, packet.data.len());
             }
             _ => return Err(PacketHandleError::BadId(reader.id()))
         }

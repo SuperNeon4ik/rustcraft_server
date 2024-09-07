@@ -34,6 +34,10 @@ impl PacketReader {
         self.data.clone()
     }
 
+    pub fn remaining(&self) -> usize {
+        self.data.remaining()
+    }
+
     pub fn read_varint(&mut self) -> Result<i32, PacketReadError> {
         read_varint(&mut self.data)
     }
@@ -50,6 +54,14 @@ impl PacketReader {
         if self.data.remaining() < 16 { return Err(PacketReadError::BufferUnderflow); }
         let encoded_uuid = self.data.get_u128();
         Ok(Uuid::from_u128(encoded_uuid))
+    }
+
+    pub fn read_identifier(&mut self) -> Result<Identifier, PacketReadError> {
+        let val = self.read_string()?;
+        match Identifier::from_string(&val) {
+            Ok(identifier) => Ok(identifier),
+            Err(message) => Err(PacketReadError::ConvertationIssue(message))
+        }
     }
 
     pub fn read_boolean(&mut self) -> Result<bool, PacketReadError> {
