@@ -4,6 +4,7 @@ pub mod configuration {
         pub mod feature_flags;
         pub mod finish_configuration;
         pub mod keep_alive;
+        pub mod plugin_message;
     }
     pub mod serverbound {
         pub mod acknowledge_finish_configuration;

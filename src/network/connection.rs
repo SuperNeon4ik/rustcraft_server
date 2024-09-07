@@ -11,6 +11,7 @@ use crate::crypto::aes_util::Aes128Cfb8Dec;
 use crate::crypto::aes_util::Aes128Cfb8Enc;
 use crate::crypto::aes_util::SimpleDecryptor;
 use crate::crypto::aes_util::SimpleEncryptor;
+use crate::network::packets::configuration::clientbound::finish_configuration::ConfigurationClientboundFinishConfiguration;
 use crate::network::packets::login::clientbound::login_success::LoginClientboundLoginSuccess;
 use crate::network::packets::login::clientbound::login_success::LoginSuccessProperty;
 use crate::utils::mojauth::authenticate_player;
@@ -397,7 +398,7 @@ impl Connection {
         Ok(())
     }
 
-    fn handle_configuration_packet(&self, mut reader: PacketReader) -> Result<(), PacketHandleError> {
+    fn handle_configuration_packet(&mut self, mut reader: PacketReader) -> Result<(), PacketHandleError> {
         match reader.id() {
             0x00 => {
                 let packet = ConfigurationServerboundClientInformation::read(&mut reader)?;
@@ -418,10 +419,22 @@ impl Connection {
                 log!(debug, "\tMain hand: {}", packet.main_hand);
                 log!(debug, "\tEnable text filtering: {}", packet.enable_text_filtering);
                 log!(debug, "\tAllow server listings: {}", packet.allow_server_listings);
+
+                let finish_configuration_packet = ConfigurationClientboundFinishConfiguration {};
+                self.send_packet_bytes(&finish_configuration_packet.build())
             },
             0x02 => {
                 let packet = ConfigurationServerboundPluginMessage::read(&mut reader)?;
                 log!(debug, "Recieved plugin message at '{}' ({} bytes): {:x?}", packet.channel, packet.data.len(), packet.data);
+
+                if packet.channel.to_string() == "minecraft:brand" {
+                    let brand = String::from_utf8(packet.data).unwrap();
+                    log!(verbose, "{}'s brand is '{}'", self.get_name(), brand);
+                }
+            }
+            0x03 => {
+                *self.state.lock().unwrap() = ConnectionState::Play;
+                log!(verbose, "Client {} reached Configuration Acknowledged!!!", self.get_addr());
             }
             _ => return Err(PacketHandleError::BadId(reader.id()))
         }

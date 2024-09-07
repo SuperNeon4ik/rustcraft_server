@@ -13,6 +13,7 @@ The project is currently no use for **any** environment.
 - [x] Status *(Server list)*
 - [x] Login *(Encryption & online mode)*
 - [ ] Configuration *(Working on this rn...)*
+- [x] Reach `play` state 
 - [ ] Actually join a world
 - [ ] Proper packet handling
 - [ ] Plugins *(Will probably be .dll & .so plugins made with Rust)*
