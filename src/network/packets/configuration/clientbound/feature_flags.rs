@@ -1,4 +1,4 @@
-use crate::{custom_types::identifier::Identifier, network::packet::{ClientboundPacket, PacketReader, PacketWriter, ServerboundPacket}, utils::errors::PacketReadError};
+use crate::{custom_types::identifier::Identifier, network::packet::{ClientboundPacket, PacketWriter}};
 
 pub struct ConfigurationClientboundFeatureFlags {
     pub feature_flags: Vec<Identifier>,

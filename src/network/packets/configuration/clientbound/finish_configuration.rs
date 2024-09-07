@@ -1,4 +1,4 @@
-use crate::{network::packet::{ClientboundPacket, PacketReader, PacketWriter, ServerboundPacket}, utils::errors::PacketReadError};
+use crate::network::packet::{ClientboundPacket, PacketWriter};
 
 pub struct ConfigurationClientboundFinishConfiguration {
 }
