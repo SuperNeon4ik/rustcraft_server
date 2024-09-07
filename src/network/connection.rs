@@ -285,34 +285,17 @@ impl Connection {
                 //     }
                 // }
 
-                // DEBUG: Ignore encryption if offline mode
-                if CONFIG.server.online_mode {
-                    let public_key_der = self.server_data.public_key.to_public_key_der().unwrap();
-                    let verify_token = Self::generate_verify_token(4);
+                let public_key_der = self.server_data.public_key.to_public_key_der().unwrap();
+                let verify_token = Self::generate_verify_token(4);
 
-                    *self.verify_token.lock().unwrap() = Some(verify_token.clone());
-                    let encryption_request_packet = LoginClientboundEncryptionRequest {
-                        public_key: public_key_der.to_vec(),
-                        verify_token,
-                        should_authenticate: CONFIG.server.online_mode,
-                    };
+                *self.verify_token.lock().unwrap() = Some(verify_token.clone());
+                let encryption_request_packet = LoginClientboundEncryptionRequest {
+                    public_key: public_key_der.to_vec(),
+                    verify_token,
+                    should_authenticate: CONFIG.server.online_mode,
+                };
 
-                    self.send_packet_bytes(&encryption_request_packet.build());
-                }
-                else {
-                    // Encryption skipped (debug offline mode)
-                    let uuid = *self.uuid.lock().unwrap();
-                    let username = (*self.name.lock().unwrap().clone().unwrap()).to_string();
-
-                    let login_success_packet = LoginClientboundLoginSuccess {
-                        uuid,
-                        username,
-                        properties: Vec::new(),
-                        strict_error_handling: false,
-                    };
-
-                    self.send_packet_bytes(&login_success_packet.build());
-                }
+                self.send_packet_bytes(&encryption_request_packet.build());
             }
             0x01 => {
                 let packet = LoginServerboundEncryptionResponse::read(&mut reader)?;
