@@ -102,7 +102,6 @@ impl Connection {
 
     pub fn start_reading(&mut self) {
         let stream_binding = Arc::clone(&self.stream);
-        let address = self.stream.lock().unwrap().peer_addr().unwrap();
 
         let mut buf = [0u8; 1024];
         let mut data_accumulator: Vec<u8> = Vec::new();
@@ -119,10 +118,10 @@ impl Connection {
 
                     while let Some(reader) = self.extract_packet_reader(&mut data_accumulator) {
                         let packet_id = reader.id();
-                        log!(debug, "Received packet with ID 0x{:x?}", &packet_id);
+                        log!(debug, "Received packet with ID 0x{:x?} from {}", &packet_id, self.get_name());
 
                         if let Err(e) = self.handle_packet(reader) {
-                            log!(warn, "Failed to handle packet 0x{:x?} for {}: {}", packet_id, self.get_addr(), e);
+                            log!(warn, "Failed to handle packet 0x{:x?} for {}: {}", packet_id, self.get_name(), e);
                         }
                     }
                 }
@@ -130,7 +129,7 @@ impl Connection {
             }
         }
     
-        log!(verbose, "Client {}:{} dropped", address.ip(), address.port());
+        log!(verbose, "Client {} dropped", self.get_addr());
         self.stream.lock().unwrap().shutdown(Shutdown::Both).unwrap();
     }
 
@@ -157,7 +156,7 @@ impl Connection {
 
         stream.write_all(&data).unwrap();
         drop(stream);
-        log!(debug, "Sent packet ({} bytes) to {}", data.len(), self.get_addr());
+        log!(debug, "Sent packet ({} bytes) to {}", data.len(), self.get_name());
     }
 
     fn get_addr(&self) -> String {
@@ -168,7 +167,10 @@ impl Connection {
     fn get_name(&self) -> String {
         let name = self.name.lock().unwrap().clone();
         match name {
-            Some(n) => n,
+            Some(n) => {
+                let uuid = *self.uuid.lock().unwrap();
+                format!("{}[{}]", n, uuid)
+            },
             None => self.get_addr(),
         }
     }
@@ -278,13 +280,20 @@ impl Connection {
                 *self.name.lock().unwrap() = Some(packet.name);
                 *self.uuid.lock().unwrap() = packet.uuid;
 
-                // let connection_info = self.connection_info.lock().unwrap();
-                // if let Some(ref connection_info) = *connection_info {
-                //     if connection_info.protocol_version != crate::PROTOCOL_VERSION {
-                //         self.disconnect(format!("Your protocol version ({}) doesn't match server's protocol version ({})", connection_info.protocol_version, crate::PROTOCOL_VERSION));
-                //         return Ok(());
-                //     }
-                // }
+                let connection_info_binding = self.connection_info.clone();
+                let connection_info = connection_info_binding.lock().unwrap();
+                if let Some(ref connection_info) = *connection_info {
+                    if connection_info.protocol_version != crate::PROTOCOL_VERSION {
+                        if connection_info.protocol_version < crate::PROTOCOL_VERSION {
+                            self.disconnect(format!("Your protocol version ({}) doesn't match server's protocol version ({}).\nClient out-of-date.", connection_info.protocol_version, crate::PROTOCOL_VERSION));
+                        }
+                        else {
+                            self.disconnect(format!("Your protocol version ({}) doesn't match server's protocol version ({}).\nServer out-of-date.", connection_info.protocol_version, crate::PROTOCOL_VERSION));
+                        }
+                        
+                        return Ok(());
+                    }
+                }
 
                 let public_key_der = self.server_data.public_key.to_public_key_der().unwrap();
                 let verify_token = Self::generate_verify_token(4);
@@ -301,19 +310,20 @@ impl Connection {
             0x01 => {
                 let packet = LoginServerboundEncryptionResponse::read(&mut reader)?;
 
-                match &*self.verify_token.lock().unwrap() {
+                let verify_token = self.verify_token.lock().unwrap().clone();
+                match verify_token {
                     Some(verify_token) => {
                         let decrypted_verify_token = self.server_data.private_key.decrypt(Pkcs1v15Encrypt, &packet.verify_token).unwrap();
 
                         if *verify_token != decrypted_verify_token {
-                            log!(warn, "Verify tokens for {} didn't match.", self.get_addr());
-                            // self.disconnect("Verify tokens didn't match.".to_owned());
+                            log!(warn, "Verify tokens for {} didn't match.", self.get_name());
+                            self.disconnect("Verify tokens didn't match.".to_owned());
                             return Ok(());
                         }
                     }
                     None => {
-                        log!(error, "Client sent Encryption Response, but a verify token wasn't saved for them.");
-                        // self.disconnect("Failure to set up encryption".to_owned());
+                        log!(error, "{} sent Encryption Response, but a verify token wasn't saved for them.", self.get_name());
+                        self.disconnect("Failure to set up encryption".to_owned());
                         return Ok(());
                     }
                 };
@@ -324,11 +334,11 @@ impl Connection {
                 let (encryptor, decryptor) = aes_util::initialize(&shared_secret); // turn on encryption
                 self.encryption_setting = EncryptionSetting::Encrypted(Box::new(encryptor), Box::new(decryptor));
 
-                log!(verbose, "Encryption with {} is set up.", self.get_addr());
+                log!(verbose, "Encryption with {} is set up.", self.get_name());
 
                 if CONFIG.server.online_mode {
                     // Authenticate
-                    log!(verbose, "Authenticating {}...", self.get_addr());
+                    log!(verbose, "Authenticating {}...", self.get_name());
 
                     let public_key_der = self.server_data.public_key.to_public_key_der().unwrap();
                     let username = self.name.lock().unwrap().clone();
@@ -339,7 +349,7 @@ impl Connection {
                                 let uuid = Uuid::parse_str(&response.id).unwrap();
                                 *self.uuid.lock().unwrap() = uuid;
 
-                                log!(verbose, "Authentication for {}[{}] succeeded!", self.get_addr(), uuid);
+                                log!(verbose, "Authentication for {} succeeded!", self.get_name());
 
                                 let mut properties: Vec<LoginSuccessProperty> = Vec::new();
 
@@ -361,14 +371,14 @@ impl Connection {
                                 self.send_packet_bytes(&login_success_packet.build());
                             },
                             Err(e) => {
-                                log!(error, "Failed to authenticate player {}[{}]: {}", username, self.get_addr(), e);
+                                log!(error, "Failed to authenticate player {}: {}", self.get_name(), e);
                                 self.disconnect("Failed to authenticate".to_owned());
                                 return Ok(());
                             },
                         }   
                     }
                     else {
-                        log!(error, "Client {} sent Encryption Response before Login Start", self.get_addr());
+                        log!(error, "Client {} sent Encryption Response before Login Start", self.get_name());
                         self.disconnect("Failed to authenticate".to_owned());
                         return Ok(());
                     }
@@ -390,7 +400,7 @@ impl Connection {
             }
             0x03 => {
                 *self.state.lock().unwrap() = ConnectionState::Configuration;
-                log!(verbose, "Client {} reached Login Acknowledged!!!", self.get_addr());
+                log!(verbose, "Client {} reached Login Acknowledged!!!", self.get_name());
             }
             _ => return Err(PacketHandleError::BadId(reader.id()))
         }
@@ -403,7 +413,7 @@ impl Connection {
             0x00 => {
                 let packet = ConfigurationServerboundClientInformation::read(&mut reader)?;
 
-                log!(debug, "Client information from {}:", self.get_name());
+                log!(debug, "Client information for {}:", self.get_name());
                 log!(debug, "\tLocale: {}", packet.locale);
                 log!(debug, "\tView distance: {}", packet.view_distance);
                 log!(debug, "\tChat mode: {}", packet.chat_mode);
@@ -434,7 +444,7 @@ impl Connection {
             }
             0x03 => {
                 *self.state.lock().unwrap() = ConnectionState::Play;
-                log!(verbose, "Client {} reached Configuration Acknowledged!!!", self.get_addr());
+                log!(verbose, "Client {} reached Configuration Acknowledged!!!", self.get_name());
             }
             _ => return Err(PacketHandleError::BadId(reader.id()))
         }
