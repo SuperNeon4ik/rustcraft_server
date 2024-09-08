@@ -36,7 +36,7 @@ pub fn write_varint(buf: &mut dyn BufMut, value: i32) {
     }
 }
 
-#[allow(unused)]
+
 pub fn read_varlong(buf: &mut dyn Buf) -> Result<i64, PacketReadError> {
     let mut value = 0;
     let mut shift = 0;
@@ -57,7 +57,7 @@ pub fn read_varlong(buf: &mut dyn Buf) -> Result<i64, PacketReadError> {
     Err(PacketReadError::TooLong)
 }
 
-#[allow(unused)]
+
 pub fn write_varlong(buf: &mut dyn BufMut, value: i64) {
     let mut value = value;
     loop {

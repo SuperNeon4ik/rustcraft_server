@@ -1,6 +1,5 @@
 use crate::{network::packet::{ServerboundPacket, PacketReader}, utils::errors::PacketReadError};
 
-#[allow(unused)]
 pub struct ConfigurationServerboundKeepAlive {
     pub keep_alive_id: i64,
 }

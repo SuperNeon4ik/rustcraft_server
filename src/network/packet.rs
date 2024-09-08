@@ -14,7 +14,7 @@ pub struct PacketWriter {
     data: BytesMut,
 }
 
-#[allow(unused)]
+
 impl PacketReader {
     pub fn new(data: &[u8]) -> Result<Self, PacketReadError> {
         let mut buf = BytesMut::from(data);
@@ -118,7 +118,7 @@ impl PacketReader {
     }
 }
 
-#[allow(unused)]
+
 impl PacketWriter {
     pub fn new(packet_id: i32) -> Self {
         PacketWriter {
@@ -226,7 +226,7 @@ pub trait ClientboundPacket {
 }
 
 pub trait ServerboundPacket {
-    #[allow(unused)]
+    
     fn packet_id() -> i32 
     where 
         Self: Sized;

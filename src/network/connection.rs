@@ -25,7 +25,7 @@ use super::packets::configuration::serverbound::plugin_message::ConfigurationSer
 use super::packets::login::serverbound::encryption_response::LoginServerboundEncryptionResponse;
 use super::{packet::{ClientboundPacket, PacketReader, ServerboundPacket}, packets::{status::{clientbound::{ping_response::StatusClientboundPingResponse, status_response::StatusClientboundStatusResponse}, serverbound::ping_request::StatusServerboundPingRequest}, login::{serverbound::login_start::LoginServerboundLoginStart, clientbound::disconnect::LoginClientboundDisconnect}}};
 
-#[allow(unused)]
+
 #[derive(Clone, PartialEq)]
 pub enum ConnectionState {
     Handshaking,
@@ -60,7 +60,7 @@ pub struct Connection {
     pub connection_info: Arc<Mutex<Option<ConnectionInfo>>>,
 }
 
-#[allow(unused)]
+
 pub struct ConnectionInfo {
     pub protocol_version: i32,
     pub server_address: String,
