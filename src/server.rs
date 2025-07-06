@@ -2,11 +2,14 @@ use rsa::RsaPublicKey;
 use rsa::RsaPrivateKey;
 use crate::crypto::rsa_util::generate_rsa_keypair;
 use crate::{log, network::connection::Connection, LOGGER, CONFIG};
+use std::sync::Arc;
+use std::sync::RwLock;
 use std::{net::TcpListener, thread};
 
 pub struct MinecraftServer {
     address: String,
     server_data: ServerData,
+    connections: Arc<RwLock<Vec<Arc<Connection>>>>
 }
 
 #[derive(Clone)]
@@ -25,7 +28,8 @@ impl MinecraftServer {
             server_data: ServerData { 
                 private_key: keypair.0, 
                 public_key: keypair.1
-            }
+            },
+            connections: Arc::new(RwLock::new(Vec::new()))
         }
     }
 
@@ -44,9 +48,16 @@ impl MinecraftServer {
                     let address = stream.peer_addr().unwrap();
                     log!(verbose, "Received a connection: {}:{}", address.ip(), address.port());
 
-                    let mut conn = Connection::new(stream, &self.server_data);
+                    let conn = Arc::new(Connection::new(stream, &self.server_data));
+                    let t_conn = Arc::clone(&conn);
+                    let t_conns = Arc::clone(&self.connections);
+
+                    self.connections.write().unwrap().push(conn);
                     thread::spawn(move || { 
-                        conn.start_reading();
+                        t_conn.start_reading();
+
+                        let mut t_conns = t_conns.write().unwrap();
+                        t_conns.retain(|c| !Arc::ptr_eq(c, &t_conn));
                     });
                 }
                 Err(e) => log!(warn, "Failed to read incoming stream: {}", e)

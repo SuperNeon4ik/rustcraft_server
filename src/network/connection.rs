@@ -17,6 +17,7 @@ use crate::network::packets::login::clientbound::login_success::LoginSuccessProp
 use crate::utils::mojauth::authenticate_player;
 use crate::{log, network::packets::{handshaking::serverbound::handshake::{HandshakeNextState, HandshakingServerboundHandshake}, login::clientbound::encryption_request::LoginClientboundEncryptionRequest}, utils::{errors::PacketHandleError, packet_utils::read_varint}, CONFIG, LOGGER, server::ServerData};
 use core::fmt;
+use std::sync::RwLock;
 use std::{io::{Read, Write}, net::{Shutdown, TcpStream}, sync::{Arc, Mutex}};
 
 use super::packets::configuration::clientbound::disconnect::ConfigurationClientboundDisconnect;
@@ -51,13 +52,13 @@ impl fmt::Display for ConnectionState {
 
 pub struct Connection {
     stream: Arc<Mutex<TcpStream>>,
-    state: Arc<Mutex<ConnectionState>>,
-    server_data: ServerData,
-    verify_token: Mutex<Option<Vec<u8>>>,
-    encryption_setting: EncryptionSetting,
-    name: Mutex<Option<String>>,
-    uuid: Mutex<Uuid>,
-    pub connection_info: Arc<Mutex<Option<ConnectionInfo>>>,
+    state: Arc<RwLock<ConnectionState>>,
+    server_data: Arc<ServerData>,
+    verify_token: Arc<Mutex<Option<Vec<u8>>>>,
+    encryption_setting: Arc<Mutex<EncryptionSetting>>,
+    name: Arc<RwLock<Option<String>>>,
+    uuid: Arc<RwLock<Uuid>>,
+    pub connection_info: Arc<RwLock<Option<ConnectionInfo>>>,
 }
 
 
@@ -90,29 +91,31 @@ impl Connection {
     pub fn new(stream: TcpStream, server_data: &ServerData) -> Self {
         Connection { 
             stream: Arc::new(Mutex::new(stream)),
-            state: Arc::new(Mutex::new(ConnectionState::Handshaking)), 
-            server_data: server_data.clone(),
-            verify_token: Mutex::new(None),
-            encryption_setting: EncryptionSetting::Disabled,
-            name: Mutex::new(None),
-            uuid: Mutex::new(Uuid::new_v4()),
-            connection_info: Arc::new(Mutex::new(None)),
+            state: Arc::new(RwLock::new(ConnectionState::Handshaking)), 
+            server_data: Arc::new(server_data.clone()),
+            verify_token: Arc::new(Mutex::new(None)),
+            encryption_setting: Arc::new(Mutex::new(EncryptionSetting::Disabled)),
+            name: Arc::new(RwLock::new(None)),
+            uuid: Arc::new(RwLock::new(Uuid::new_v4())),
+            connection_info: Arc::new(RwLock::new(None)),
         }
     }
 
-    pub fn start_reading(&mut self) {
+    pub fn start_reading(&self) {
         let stream_binding = Arc::clone(&self.stream);
 
         let mut buf = [0u8; 1024];
         let mut data_accumulator: Vec<u8> = Vec::new();
-        
+
         loop {
             let mut stream = stream_binding.lock().unwrap();
             match stream.read(&mut buf) {
                 Ok(0) => break,
                 Ok(n) => {
                     let slice = &mut buf[..n];
-                    self.encryption_setting.decrypt(slice);
+                    {
+                        self.encryption_setting.lock().unwrap().decrypt(slice);
+                    }
                     data_accumulator.extend_from_slice(slice);
                     drop(stream);
 
@@ -149,10 +152,13 @@ impl Connection {
         None
     }
 
-    fn send_packet_bytes(&mut self, data: &[u8]) {
+    fn send_packet_bytes(&self, data: &[u8]) {
         let mut stream = self.stream.lock().unwrap();
         let mut data: Vec<u8> = data.to_vec();
-        self.encryption_setting.encrypt(&mut data);
+
+        {
+            self.encryption_setting.lock().unwrap().encrypt(&mut data);
+        }
 
         stream.write_all(&data).unwrap();
         drop(stream);
@@ -165,18 +171,18 @@ impl Connection {
     }
 
     fn get_name(&self) -> String {
-        let name = self.name.lock().unwrap().clone();
+        let name = self.name.read().unwrap().clone();
         match name {
             Some(n) => {
-                let uuid = *self.uuid.lock().unwrap();
+                let uuid = *self.uuid.read().unwrap();
                 format!("{}[{}]", n, uuid)
             },
             None => self.get_addr(),
         }
     }
 
-    fn handle_packet(&mut self, reader: PacketReader) -> Result<(), PacketHandleError> {
-        let state_ref = self.state.lock().unwrap();
+    fn handle_packet(&self, reader: PacketReader) -> Result<(), PacketHandleError> {
+        let state_ref = self.state.read().unwrap();
 
         match *state_ref {
             ConnectionState::Handshaking => {
@@ -212,14 +218,14 @@ impl Connection {
                 log!(debug, "\tserver_port = {}", packet.server_port);
                 log!(debug, "\tnext_state = {}", packet.next_state);
 
-                let mut connection_info = self.connection_info.lock().unwrap();
+                let mut connection_info = self.connection_info.write().unwrap();
                 *connection_info = Some(ConnectionInfo {
                     protocol_version: packet.protocol_version,
                     server_address: packet.server_address,
                     server_port: packet.server_port,
                 });
 
-                let mut state = self.state.lock().unwrap();
+                let mut state = self.state.write().unwrap();
                 match packet.next_state {
                     HandshakeNextState::Status => *state = ConnectionState::Status,
                     HandshakeNextState::Login => *state = ConnectionState::Login,
@@ -232,7 +238,7 @@ impl Connection {
         Ok(())
     }
 
-    fn handle_status_packet(&mut self, mut reader: PacketReader) -> Result<(), PacketHandleError> {
+    fn handle_status_packet(&self, mut reader: PacketReader) -> Result<(), PacketHandleError> {
         match reader.id() {
             0x00 => {
                 let json_status_response = object! {
@@ -272,16 +278,16 @@ impl Connection {
         Ok(())
     }
 
-    fn handle_login_packet(&mut self, mut reader: PacketReader) -> Result<(), PacketHandleError> {
+    fn handle_login_packet(&self, mut reader: PacketReader) -> Result<(), PacketHandleError> {
         match reader.id() {
             0x00 => {
                 let packet = LoginServerboundLoginStart::read(&mut reader)?;
                 log!(info, "Player {}[uuid = {}; ip = {}] is logging in", packet.name, packet.uuid, self.get_addr());
-                *self.name.lock().unwrap() = Some(packet.name);
-                *self.uuid.lock().unwrap() = packet.uuid;
+                *self.name.write().unwrap() = Some(packet.name);
+                *self.uuid.write().unwrap() = packet.uuid;
 
                 let connection_info_binding = self.connection_info.clone();
-                let connection_info = connection_info_binding.lock().unwrap();
+                let connection_info = connection_info_binding.read().unwrap();
                 if let Some(ref connection_info) = *connection_info {
                     if connection_info.protocol_version != crate::PROTOCOL_VERSION {
                         if connection_info.protocol_version < crate::PROTOCOL_VERSION {
@@ -331,8 +337,10 @@ impl Connection {
                 let shared_secret = self.server_data.private_key.decrypt(Pkcs1v15Encrypt, &packet.shared_secret).unwrap();
 
                 *self.verify_token.lock().unwrap() = None;
-                let (encryptor, decryptor) = aes_util::initialize(&shared_secret); // turn on encryption
-                self.encryption_setting = EncryptionSetting::Encrypted(Box::new(encryptor), Box::new(decryptor));
+
+                // turn on encryption
+                let (encryptor, decryptor) = aes_util::initialize(&shared_secret);
+                *self.encryption_setting.lock().unwrap() = EncryptionSetting::Encrypted(Box::new(encryptor), Box::new(decryptor));
 
                 log!(verbose, "Encryption with {} is set up.", self.get_name());
 
@@ -341,13 +349,13 @@ impl Connection {
                     log!(verbose, "Authenticating {}...", self.get_name());
 
                     let public_key_der = self.server_data.public_key.to_public_key_der().unwrap();
-                    let username = self.name.lock().unwrap().clone();
+                    let username = self.name.read().unwrap().clone();
 
                     if let Some(username) = username {
                         match authenticate_player(username.to_owned(), &shared_secret, public_key_der.as_bytes()) {
                             Ok(response) => {
                                 let uuid = Uuid::parse_str(&response.id).unwrap();
-                                *self.uuid.lock().unwrap() = uuid;
+                                *self.uuid.write().unwrap() = uuid;
 
                                 log!(verbose, "Authentication for {} succeeded!", self.get_name());
 
@@ -385,8 +393,8 @@ impl Connection {
                 }
                 else {
                     // Authentication skipped (offline mode)
-                    let uuid = *self.uuid.lock().unwrap();
-                    let username = (*self.name.lock().unwrap().clone().unwrap()).to_string();
+                    let uuid = *self.uuid.read().unwrap();
+                    let username = (*self.name.read().unwrap().clone().unwrap()).to_string();
 
                     let login_success_packet = LoginClientboundLoginSuccess {
                         uuid,
@@ -399,7 +407,7 @@ impl Connection {
                 }
             }
             0x03 => {
-                *self.state.lock().unwrap() = ConnectionState::Configuration;
+                *self.state.write().unwrap() = ConnectionState::Configuration;
                 log!(verbose, "Client {} reached Login Acknowledged!!!", self.get_name());
             }
             _ => return Err(PacketHandleError::BadId(reader.id()))
@@ -408,7 +416,7 @@ impl Connection {
         Ok(())
     }
 
-    fn handle_configuration_packet(&mut self, mut reader: PacketReader) -> Result<(), PacketHandleError> {
+    fn handle_configuration_packet(&self, mut reader: PacketReader) -> Result<(), PacketHandleError> {
         match reader.id() {
             0x00 => {
                 let packet = ConfigurationServerboundClientInformation::read(&mut reader)?;
@@ -443,7 +451,7 @@ impl Connection {
                 }
             }
             0x03 => {
-                *self.state.lock().unwrap() = ConnectionState::Play;
+                *self.state.write().unwrap() = ConnectionState::Play;
                 log!(verbose, "Client {} reached Configuration Acknowledged!!!", self.get_name());
             }
             _ => return Err(PacketHandleError::BadId(reader.id()))
@@ -452,8 +460,8 @@ impl Connection {
         Ok(())
     }
 
-    fn disconnect(&mut self, reason: String) {
-        let connection_state = self.state.lock().unwrap().clone();
+    fn disconnect(&self, reason: String) {
+        let connection_state = self.state.read().unwrap().clone();
         match connection_state {
             ConnectionState::Login => {
                 let login_disconnect_packet = LoginClientboundDisconnect::from_string(reason);
