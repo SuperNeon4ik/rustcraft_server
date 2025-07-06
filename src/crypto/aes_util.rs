@@ -57,7 +57,7 @@ mod tests {
         // Generate random shared secret
         let mut rng = rand::thread_rng();
         let shared_secret: Vec<u8> = (0..16).map(|_| rng.gen()).collect();
-        println!("Shared secret: {:x?}", shared_secret);
+        println!("Shared secret: {shared_secret:x?}");
 
         // Initialize encryptor and decryptor
         let (mut encryptor1, _) = initialize(&shared_secret);    
@@ -88,7 +88,7 @@ mod tests {
         // Generate random shared secret
         let mut rng = rand::thread_rng();
         let shared_secret: Vec<u8> = (0..16).map(|_| rng.gen()).collect();
-        println!("Shared secret: {:x?}", shared_secret);
+        println!("Shared secret: {shared_secret:x?}");
 
         // Initialize encryptor and decryptor
         let (_, mut decryptor1) = initialize(&shared_secret);    
@@ -119,7 +119,7 @@ mod tests {
         // Generate random shared secret
         let mut rng = rand::thread_rng();
         let shared_secret: Vec<u8> = (0..16).map(|_| rng.gen()).collect();
-        println!("Shared secret: {:x?}", shared_secret);
+        println!("Shared secret: {shared_secret:x?}");
 
         // Initialize encryptor and decryptor
         let (mut encryptor, mut decryptor) = initialize(&shared_secret);    
@@ -142,14 +142,14 @@ mod tests {
         // Key and IV (Initialization Vector)
         let mut rng = rand::thread_rng();
         let shared_secret: Vec<u8> = (0..16).map(|_| rng.gen()).collect();
-        println!("Shared secret: {:x?}", shared_secret);
+        println!("Shared secret: {shared_secret:x?}");
 
         // Initialize encryptor and decryptor
         let (mut encryptor, mut decryptor) = initialize(&shared_secret);    
 
         // Simulate a single block of data to encrypt and decrypt
         for i in 0..5 {
-            println!("Test #{}", i);
+            println!("Test #{i}");
             let data: Vec<u8> = (0..16).map(|_| rng.gen()).collect();    
             println!("  Data ({} bytes): {:x?}", data.len(), data);
 
@@ -168,7 +168,7 @@ mod tests {
         // Generate random shared secret
         let mut rng = rand::thread_rng();
         let shared_secret: Vec<u8> = (0..16).map(|_| rng.gen()).collect();
-        println!("Shared secret: {:x?}", shared_secret);
+        println!("Shared secret: {shared_secret:x?}");
 
         // Initialize encryptor and decryptor
         let (mut encryptor, mut decryptor) = initialize(&shared_secret);    

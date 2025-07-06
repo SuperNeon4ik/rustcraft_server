@@ -24,11 +24,11 @@ pub fn authenticate_player(username: String, shared_secret: &[u8], encoded_publi
         .chain_update(encoded_public_key);
 
     let hash = calc_hash(sha);
-    let endpoint = format!("/session/minecraft/hasJoined?username={}&serverId={}", username, hash);
+    let endpoint = format!("/session/minecraft/hasJoined?username={username}&serverId={hash}");
     let body = reqwest::blocking::get(SESSION_HOST.to_owned() + &endpoint)?.text()?;
 
     match serde_json::from_str(&body) {
         Ok(result) => Ok(result),
-        Err(e) => Err(ObjectResponseError::SerdeParseError(format!("{} ({})", body, e)))
+        Err(e) => Err(ObjectResponseError::SerdeParseError(format!("{body} ({e})")))
     }
 }

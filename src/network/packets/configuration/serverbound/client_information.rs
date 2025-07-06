@@ -26,7 +26,7 @@ impl fmt::Display for ClientChatMode {
             ClientChatMode::CommandsOnly => "Commands only",
             ClientChatMode::Hidden => "Hidden",
         };
-        write!(f, "{}", msg)
+        write!(f, "{msg}")
     }
 }
 
@@ -41,7 +41,7 @@ impl fmt::Display for MainHand {
             MainHand::Left => "Left",
             MainHand::Right => "Right",
         };
-        write!(f, "{}", msg)
+        write!(f, "{msg}")
     }
 }
 

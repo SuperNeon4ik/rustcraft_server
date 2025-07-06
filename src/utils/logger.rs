@@ -29,7 +29,7 @@ impl fmt::Display for LogLevel {
             Self::Debug => "DEBUG",
         };
 
-        write!(f, "{}", level_str)
+        write!(f, "{level_str}")
     }
 }
 
@@ -75,7 +75,7 @@ impl Logger {
             LogLevel::Debug => formatted_text.bright_blue(),
         };
 
-        print!("{}", colored_text);
+        print!("{colored_text}");
     }
     
     pub fn error(&self, source: &str, text: &str) {

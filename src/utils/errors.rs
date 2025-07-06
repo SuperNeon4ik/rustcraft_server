@@ -25,8 +25,8 @@ pub enum ObjectResponseError {
 impl fmt::Display for PacketHandleError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::BadId(id) => write!(f, "Bad packet ID 0x{:x?}", id),
-            Self::ReadError(e) => write!(f, "ReadError during handling: {}", e)
+            Self::BadId(id) => write!(f, "Bad packet ID 0x{id:x?}"),
+            Self::ReadError(e) => write!(f, "ReadError during handling: {e}")
         }
     }
 }
@@ -48,15 +48,15 @@ impl fmt::Display for PacketReadError {
             Self::ConvertationIssue(details) => &("Convertation issue: ".to_owned() + details)
         };
 
-        write!(f, "{}", msg)
+        write!(f, "{msg}")
     }
 }
 
 impl fmt::Display for ObjectResponseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ReqwestError(e) => write!(f, "Error while sending request: {}", e),
-            Self::SerdeParseError(e) => write!(f, "Failed to parse object: {}", e)
+            Self::ReqwestError(e) => write!(f, "Error while sending request: {e}"),
+            Self::SerdeParseError(e) => write!(f, "Failed to parse object: {e}")
         }
     }
 }

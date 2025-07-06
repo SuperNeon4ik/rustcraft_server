@@ -46,7 +46,7 @@ impl fmt::Display for ConnectionState {
             Self::Play => "Play",
         };
 
-        write!(f, "{}", state)
+        write!(f, "{state}")
     }
 }
 
@@ -175,7 +175,7 @@ impl Connection {
         match name {
             Some(n) => {
                 let uuid = *self.uuid.read().unwrap();
-                format!("{}[{}]", n, uuid)
+                format!("{n}[{uuid}]")
             },
             None => self.get_addr(),
         }

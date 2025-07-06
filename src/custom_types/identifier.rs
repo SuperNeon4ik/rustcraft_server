@@ -21,11 +21,11 @@ impl Identifier {
         let value_re = Regex::new(Self::VALUE_PATTERN).unwrap();
 
         if !namespace_re.is_match(namespace) {
-            return Err(format!("Invalid namespace: '{}'", namespace));
+            return Err(format!("Invalid namespace: '{namespace}'"));
         }
 
         if !value_re.is_match(value) {
-            return Err(format!("Invalid value: '{}'", value));
+            return Err(format!("Invalid value: '{value}'"));
         }
 
         Ok(Self {

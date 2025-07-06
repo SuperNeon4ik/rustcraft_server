@@ -80,7 +80,7 @@ pub fn read_string(buf: &mut dyn Buf) -> Result<String, PacketReadError> {
 
     let mut string_bytes = vec![0u8; length];
     buf.copy_to_slice(&mut string_bytes);
-    return match str::from_utf8(&string_bytes) {
+    match str::from_utf8(&string_bytes) {
         Ok(result) => Ok(result.to_owned()),
         Err(_) => Err(PacketReadError::Utf8Error)
     }

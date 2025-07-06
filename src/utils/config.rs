@@ -39,7 +39,7 @@ pub fn read_config(filename: &str) -> Option<Config> {
     let config = match toml::from_str(&data) {
         Ok(conf) => conf,
         Err(e) => {
-            eprintln!("Failed to parse {} file: {}", filename, e);
+            eprintln!("Failed to parse {filename} file: {e}");
             return None;
         }
     };
@@ -69,7 +69,7 @@ pub fn write_default_config(filename: &str) -> bool {
     let data = match toml::to_string_pretty(&default_config) {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("Failed to serialize default config: {}", e);
+            eprintln!("Failed to serialize default config: {e}");
             return false;
         }
     };
@@ -81,7 +81,7 @@ pub fn write_default_config(filename: &str) -> bool {
         .open(filename) {
             Ok(f) => f,
             Err(e) => {
-                eprintln!("Failed to open config file: {}", e);
+                eprintln!("Failed to open config file: {e}");
                 return false;
             }
         };

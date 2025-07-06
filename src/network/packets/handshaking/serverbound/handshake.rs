@@ -23,7 +23,7 @@ impl fmt::Display for HandshakeNextState {
             Self::Transfer => "Transfer",
         };
         
-        write!(f, "{}", msg)
+        write!(f, "{msg}")
     }
 }
 
