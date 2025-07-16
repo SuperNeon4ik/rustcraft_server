@@ -22,6 +22,7 @@ use crate::{log, network::packets::{handshaking::serverbound::handshake::{Handsh
 use core::fmt;
 use std::sync::RwLock;
 use std::{io::{Read, Write}, net::{Shutdown, TcpStream}, sync::{Arc, Mutex}};
+use crate::utils::errors::PacketReadError;
 use crate::utils::packet_utils::write_string;
 use super::packets::configuration::clientbound::disconnect::ConfigurationClientboundDisconnect;
 use super::packets::configuration::serverbound::client_information::ConfigurationServerboundClientInformation;
@@ -136,7 +137,6 @@ impl Connection {
         }
     
         log!(verbose, "Client {} dropped", self.get_addr());
-        self.stream.lock().unwrap().shutdown(Shutdown::Both).unwrap();
     }
 
     fn extract_packet_reader(&self, data: &mut Vec<u8>) -> Option<PacketReader> {
