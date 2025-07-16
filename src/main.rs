@@ -13,8 +13,8 @@ use once_cell::sync::Lazy;
 use utils::{config::{read_config, write_default_config, Config}, logger::{LogLevel, Logger}};
 use server::MinecraftServer;
 
-pub const VERSION: &str = "1.21";
-pub const PROTOCOL_VERSION: i32 = 767;
+pub const VERSION: &str = "1.21.7";
+pub const PROTOCOL_VERSION: i32 = 772;
 pub const SESSION_HOST: &str = "https://sessionserver.mojang.com";
 
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {

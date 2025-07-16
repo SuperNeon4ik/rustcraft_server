@@ -1,6 +1,6 @@
 use rand::Rng;
 use rand::thread_rng;
-use bytes::BytesMut;
+use bytes::{Bytes, BytesMut};
 use json::object;
 use rsa::Pkcs1v15Encrypt;
 use rsa::pkcs8::EncodePublicKey;
@@ -22,7 +22,7 @@ use crate::{log, network::packets::{handshaking::serverbound::handshake::{Handsh
 use core::fmt;
 use std::sync::RwLock;
 use std::{io::{Read, Write}, net::{Shutdown, TcpStream}, sync::{Arc, Mutex}};
-
+use crate::utils::packet_utils::write_string;
 use super::packets::configuration::clientbound::disconnect::ConfigurationClientboundDisconnect;
 use super::packets::configuration::serverbound::client_information::ConfigurationServerboundClientInformation;
 use super::packets::configuration::serverbound::plugin_message::ConfigurationServerboundPluginMessage;
@@ -376,7 +376,6 @@ impl Connection {
                                     uuid,
                                     username,
                                     properties,
-                                    strict_error_handling: false,
                                 };
 
                                 self.send_packet_bytes(&login_success_packet.build());
@@ -403,7 +402,6 @@ impl Connection {
                         uuid,
                         username,
                         properties: Vec::new(),
-                        strict_error_handling: false,
                     };
 
                     self.send_packet_bytes(&login_success_packet.build());
@@ -442,9 +440,14 @@ impl Connection {
                 log!(debug, "\tAllow server listings: {}", packet.allow_server_listings);
 
                 // Send server brand to client
+                let server_brand = CONFIG.status.version_prefix.clone()
+                    + " (https://github.com/SuperNeon4ik/rustcraft_server)";
+                let mut server_brand_bytes = BytesMut::new();
+                write_string(&mut server_brand_bytes, &server_brand);
+
                 let server_brand_packet = ConfigurationClientboundPluginMessage {
                     channel: Identifier::new(None, "brand").unwrap(),
-                    data: "Rustcraft (https://github.com/SuperNeon4ik/rustcraft_server)".as_bytes().to_vec(),
+                    data: server_brand_bytes.to_vec(),
                 };
 
                 self.send_packet_bytes(&server_brand_packet.build());

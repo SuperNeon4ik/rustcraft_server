@@ -6,7 +6,6 @@ pub struct LoginClientboundLoginSuccess {
     pub uuid: Uuid,
     pub username: String,
     pub properties: Vec<LoginSuccessProperty>,
-    pub strict_error_handling: bool,
 }
 
 pub struct LoginSuccessProperty {
@@ -40,8 +39,6 @@ impl ClientboundPacket for LoginClientboundLoginSuccess {
                 }
             };
         }
-
-        writer.write_boolean(self.strict_error_handling);
 
         writer.build_uncompressed()
     }
