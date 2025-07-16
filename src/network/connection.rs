@@ -11,9 +11,12 @@ use crate::crypto::aes_util::Aes128Cfb8Dec;
 use crate::crypto::aes_util::Aes128Cfb8Enc;
 use crate::crypto::aes_util::SimpleDecryptor;
 use crate::crypto::aes_util::SimpleEncryptor;
+use crate::custom_types::identifier::Identifier;
 use crate::network::packets::configuration::clientbound::finish_configuration::ConfigurationClientboundFinishConfiguration;
+use crate::network::packets::configuration::clientbound::plugin_message::ConfigurationClientboundPluginMessage;
 use crate::network::packets::login::clientbound::login_success::LoginClientboundLoginSuccess;
 use crate::network::packets::login::clientbound::login_success::LoginSuccessProperty;
+use crate::network::packets::play::clientbound::login::PlayClientboundLogin;
 use crate::utils::mojauth::authenticate_player;
 use crate::{log, network::packets::{handshaking::serverbound::handshake::{HandshakeNextState, HandshakingServerboundHandshake}, login::clientbound::encryption_request::LoginClientboundEncryptionRequest}, utils::{errors::PacketHandleError, packet_utils::read_varint}, CONFIG, LOGGER, server::ServerData};
 use core::fmt;
@@ -438,6 +441,15 @@ impl Connection {
                 log!(debug, "\tEnable text filtering: {}", packet.enable_text_filtering);
                 log!(debug, "\tAllow server listings: {}", packet.allow_server_listings);
 
+                // Send server brand to client
+                let server_brand_packet = ConfigurationClientboundPluginMessage {
+                    channel: Identifier::new(None, "brand").unwrap(),
+                    data: "Rustcraft (https://github.com/SuperNeon4ik/rustcraft_server)".as_bytes().to_vec(),
+                };
+
+                self.send_packet_bytes(&server_brand_packet.build());
+
+                // Finish configuration
                 let finish_configuration_packet = ConfigurationClientboundFinishConfiguration {};
                 self.send_packet_bytes(&finish_configuration_packet.build())
             },
@@ -453,6 +465,33 @@ impl Connection {
             0x03 => {
                 *self.state.write().unwrap() = ConnectionState::Play;
                 log!(verbose, "Client {} reached Configuration Acknowledged!!!", self.get_name());
+
+                // We reached PLAY!!!
+                // now let's find out for how long can we gaslight the client for into thinking
+                // that we are a real server
+                let login_packet = PlayClientboundLogin {
+                    entity_id: 1,
+                    is_hardcode: false,
+                    dimention_names: vec![Identifier::from_string("minecraft:world").unwrap()],
+                    max_players: 1,
+                    view_distance: 12,
+                    simulation_distance: 12,
+                    reduced_debug_info: false,
+                    enable_respawn_screen: true,
+                    do_limited_crafting: false,
+                    dimention_type: todo!(), // what?
+                    dimention_name: Identifier::from_string("minecraft:world").unwrap(),
+                    hashed_seed: 0,
+                    gamemode: 1,
+                    previous_gamemode: -1,
+                    is_debug: false,
+                    is_flat: true,
+                    death_location: None,
+                    portal_cooldown: 10,
+                    enforces_secure_chat: false,
+                };
+
+                self.send_packet_bytes(&login_packet.build());
             }
             _ => return Err(PacketHandleError::BadId(reader.id()))
         }

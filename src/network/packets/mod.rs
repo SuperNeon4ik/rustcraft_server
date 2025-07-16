@@ -5,12 +5,14 @@ pub mod configuration {
         pub mod finish_configuration;
         pub mod keep_alive;
         pub mod plugin_message;
+        pub mod clientbound_known_packs;
     }
     pub mod serverbound {
         pub mod acknowledge_finish_configuration;
         pub mod client_information;
         pub mod keep_alive;
         pub mod plugin_message;
+        pub mod serverbound_known_packs;
     }
 }
 
@@ -28,6 +30,16 @@ pub mod status {
     pub mod serverbound {
         pub mod ping_request;
         pub mod status_request;
+    }
+}
+
+pub mod play {
+    pub mod clientbound {
+        pub mod login;
+        pub mod disconnect;
+    }
+    pub mod serverbound {
+
     }
 }
 
