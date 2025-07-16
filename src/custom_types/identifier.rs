@@ -1,5 +1,5 @@
-use std::fmt;
 use regex::Regex;
+use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Identifier {

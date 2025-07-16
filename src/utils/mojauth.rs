@@ -1,6 +1,6 @@
+use crate::{crypto::auth_hash::calc_hash, SESSION_HOST};
 use serde_derive::Deserialize;
-use sha1::{Sha1, Digest};
-use crate::{SESSION_HOST, crypto::auth_hash::calc_hash};
+use sha1::{Digest, Sha1};
 
 use super::errors::ObjectResponseError;
 

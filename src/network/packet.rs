@@ -1,8 +1,8 @@
-use bytes::{Buf, BufMut, BytesMut};
-use uuid::Uuid;
 use crate::custom_types::identifier::Identifier;
 use crate::utils::errors::PacketReadError;
 use crate::utils::packet_utils::{read_string, read_varint, read_varlong, write_string, write_varint, write_varlong};
+use bytes::{Buf, BufMut, BytesMut};
+use uuid::Uuid;
 
 pub struct PacketReader {
     packet_id: i32,

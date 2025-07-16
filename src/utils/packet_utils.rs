@@ -1,5 +1,5 @@
-use core::str;
 use bytes::{Buf, BufMut};
+use core::str;
 
 use crate::utils::errors::PacketReadError;
 

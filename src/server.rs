@@ -1,7 +1,7 @@
-use rsa::RsaPublicKey;
-use rsa::RsaPrivateKey;
 use crate::crypto::rsa_util::generate_rsa_keypair;
-use crate::{log, network::connection::Connection, LOGGER, CONFIG};
+use crate::{log, network::connection::Connection, CONFIG, LOGGER};
+use rsa::RsaPrivateKey;
+use rsa::RsaPublicKey;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::{net::TcpListener, thread};

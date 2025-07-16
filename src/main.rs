@@ -10,8 +10,8 @@ use std::thread;
 use chrono::Local;
 use crossbeam_channel::{bounded, select, Receiver};
 use once_cell::sync::Lazy;
-use utils::{config::{read_config, write_default_config, Config}, logger::{LogLevel, Logger}};
 use server::MinecraftServer;
+use utils::{config::{read_config, write_default_config, Config}, logger::{LogLevel, Logger}};
 
 pub const VERSION: &str = "1.21.7";
 pub const PROTOCOL_VERSION: i32 = 772;

@@ -1,4 +1,4 @@
-use crate::{network::packet::{ServerboundPacket, PacketReader}, utils::errors::PacketReadError};
+use crate::{network::packet::{PacketReader, ServerboundPacket}, utils::errors::PacketReadError};
 
 pub struct ConfigurationServerboundAcknowledge {
 }

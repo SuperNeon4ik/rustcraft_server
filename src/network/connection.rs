@@ -1,11 +1,16 @@
-use rand::Rng;
-use rand::thread_rng;
 use bytes::{Bytes, BytesMut};
 use json::object;
-use rsa::Pkcs1v15Encrypt;
+use rand::thread_rng;
+use rand::Rng;
 use rsa::pkcs8::EncodePublicKey;
+use rsa::Pkcs1v15Encrypt;
 use uuid::Uuid;
 
+use super::packets::configuration::clientbound::disconnect::ConfigurationClientboundDisconnect;
+use super::packets::configuration::serverbound::client_information::ConfigurationServerboundClientInformation;
+use super::packets::configuration::serverbound::plugin_message::ConfigurationServerboundPluginMessage;
+use super::packets::login::serverbound::encryption_response::LoginServerboundEncryptionResponse;
+use super::{packet::{ClientboundPacket, PacketReader, ServerboundPacket}, packets::{login::{clientbound::disconnect::LoginClientboundDisconnect, serverbound::login_start::LoginServerboundLoginStart}, status::{clientbound::{ping_response::StatusClientboundPingResponse, status_response::StatusClientboundStatusResponse}, serverbound::ping_request::StatusServerboundPingRequest}}};
 use crate::crypto::aes_util;
 use crate::crypto::aes_util::Aes128Cfb8Dec;
 use crate::crypto::aes_util::Aes128Cfb8Enc;
@@ -17,18 +22,13 @@ use crate::network::packets::configuration::clientbound::plugin_message::Configu
 use crate::network::packets::login::clientbound::login_success::LoginClientboundLoginSuccess;
 use crate::network::packets::login::clientbound::login_success::LoginSuccessProperty;
 use crate::network::packets::play::clientbound::login::PlayClientboundLogin;
+use crate::utils::errors::PacketReadError;
 use crate::utils::mojauth::authenticate_player;
-use crate::{log, network::packets::{handshaking::serverbound::handshake::{HandshakeNextState, HandshakingServerboundHandshake}, login::clientbound::encryption_request::LoginClientboundEncryptionRequest}, utils::{errors::PacketHandleError, packet_utils::read_varint}, CONFIG, LOGGER, server::ServerData};
+use crate::utils::packet_utils::write_string;
+use crate::{log, network::packets::{handshaking::serverbound::handshake::{HandshakeNextState, HandshakingServerboundHandshake}, login::clientbound::encryption_request::LoginClientboundEncryptionRequest}, server::ServerData, utils::{errors::PacketHandleError, packet_utils::read_varint}, CONFIG, LOGGER};
 use core::fmt;
 use std::sync::RwLock;
 use std::{io::{Read, Write}, net::{Shutdown, TcpStream}, sync::{Arc, Mutex}};
-use crate::utils::errors::PacketReadError;
-use crate::utils::packet_utils::write_string;
-use super::packets::configuration::clientbound::disconnect::ConfigurationClientboundDisconnect;
-use super::packets::configuration::serverbound::client_information::ConfigurationServerboundClientInformation;
-use super::packets::configuration::serverbound::plugin_message::ConfigurationServerboundPluginMessage;
-use super::packets::login::serverbound::encryption_response::LoginServerboundEncryptionResponse;
-use super::{packet::{ClientboundPacket, PacketReader, ServerboundPacket}, packets::{status::{clientbound::{ping_response::StatusClientboundPingResponse, status_response::StatusClientboundStatusResponse}, serverbound::ping_request::StatusServerboundPingRequest}, login::{serverbound::login_start::LoginServerboundLoginStart, clientbound::disconnect::LoginClientboundDisconnect}}};
 
 
 #[derive(Clone, PartialEq)]
