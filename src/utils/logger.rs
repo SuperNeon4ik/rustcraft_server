@@ -15,8 +15,8 @@ pub enum LogLevel {
     Error = 4,
     Warn = 3,
     Info = 2,
-    Verbose = 1,
-    Debug = 0,
+    Debug = 1,
+    Verbose = 0,
 }
 
 impl fmt::Display for LogLevel {
@@ -25,8 +25,8 @@ impl fmt::Display for LogLevel {
             Self::Error => "ERROR",
             Self::Warn => "WARN",
             Self::Info => "INFO",
-            Self::Verbose => "VERBOSE",
             Self::Debug => "DEBUG",
+            Self::Verbose => "VERBOSE",
         };
 
         write!(f, "{level_str}")
@@ -90,11 +90,11 @@ impl Logger {
         self.log(LogLevel::Info, source, text)
     }
 
-    pub fn verbose(&self, source: &str, text: &str) {
-        self.log(LogLevel::Verbose, source, text)
-    }
-
     pub fn debug(&self, source: &str, text: &str) {
         self.log(LogLevel::Debug, source, text)
+    }
+
+    pub fn verbose(&self, source: &str, text: &str) {
+        self.log(LogLevel::Verbose, source, text)
     }
 }

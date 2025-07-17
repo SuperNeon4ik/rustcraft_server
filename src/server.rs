@@ -5,6 +5,7 @@ use rsa::RsaPublicKey;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::{net::TcpListener, thread};
+use std::panic::catch_unwind;
 
 pub struct MinecraftServer {
     address: String,
@@ -53,8 +54,10 @@ impl MinecraftServer {
                     let t_conns = Arc::clone(&self.connections);
 
                     self.connections.write().unwrap().push(conn);
-                    thread::spawn(move || { 
-                        t_conn.start_reading();
+                    thread::spawn(move || {
+                        catch_unwind(|| {
+                            t_conn.start_reading();
+                        });
 
                         let mut t_conns = t_conns.write().unwrap();
                         t_conns.retain(|c| !Arc::ptr_eq(c, &t_conn));

@@ -125,7 +125,7 @@ impl Connection {
 
                     while let Some(reader) = self.extract_packet_reader(&mut data_accumulator) {
                         let packet_id = reader.id();
-                        log!(debug, "Received packet with ID 0x{:x?} from {}", &packet_id, self.get_name());
+                        log!(verbose, "Received packet with ID 0x{:x?} from {}", &packet_id, self.get_name());
 
                         if let Err(e) = self.handle_packet(reader) {
                             log!(warn, "Failed to handle packet 0x{:x?} for {}: {}", packet_id, self.get_name(), e);
@@ -165,7 +165,7 @@ impl Connection {
 
         stream.write_all(&data).unwrap();
         drop(stream);
-        log!(debug, "Sent packet ({} bytes) to {}", data.len(), self.get_name());
+        log!(verbose, "Sent packet ({} bytes) to {}", data.len(), self.get_name());
     }
 
     fn get_addr(&self) -> String {
@@ -214,12 +214,12 @@ impl Connection {
     fn handle_handshaking_packet(&self, mut reader: PacketReader) -> Result<(), PacketHandleError> {
         match reader.id() {
             0x00 => {
-                log!(debug, "Handshake from {}:", self.get_addr());
+                log!(verbose, "Handshake from {}:", self.get_addr());
                 let packet = HandshakingServerboundHandshake::read(&mut reader)?;
-                log!(debug, "\tprotocol_version = {}", packet.protocol_version);
-                log!(debug, "\tserver_address = {}", packet.server_address);
-                log!(debug, "\tserver_port = {}", packet.server_port);
-                log!(debug, "\tnext_state = {}", packet.next_state);
+                log!(verbose, "\tprotocol_version = {}", packet.protocol_version);
+                log!(verbose, "\tserver_address = {}", packet.server_address);
+                log!(verbose, "\tserver_port = {}", packet.server_port);
+                log!(verbose, "\tnext_state = {}", packet.next_state);
 
                 let mut connection_info = self.connection_info.write().unwrap();
                 *connection_info = Some(ConnectionInfo {
@@ -422,22 +422,22 @@ impl Connection {
             0x00 => {
                 let packet = ConfigurationServerboundClientInformation::read(&mut reader)?;
 
-                log!(debug, "Client information for {}:", self.get_name());
-                log!(debug, "\tLocale: {}", packet.locale);
-                log!(debug, "\tView distance: {}", packet.view_distance);
-                log!(debug, "\tChat mode: {}", packet.chat_mode);
-                log!(debug, "\tChat colors: {}", packet.chat_colors);
-                log!(debug, "\tDisplayed skin parts:");
-                log!(debug, "\t\tCape: {}", packet.displayed_skin_parts.cape_enabled);
-                log!(debug, "\t\tJacket: {}", packet.displayed_skin_parts.jacket_enabled);
-                log!(debug, "\t\tLeft sleeve: {}", packet.displayed_skin_parts.left_sleeve_enabled);
-                log!(debug, "\t\tRight sleeve: {}", packet.displayed_skin_parts.right_sleeve_enabled);
-                log!(debug, "\t\tLeft pants: {}", packet.displayed_skin_parts.left_pants_enabled);
-                log!(debug, "\t\tRight pants: {}", packet.displayed_skin_parts.right_pants_enabled);
-                log!(debug, "\t\tHat: {}", packet.displayed_skin_parts.hat_enabled);
-                log!(debug, "\tMain hand: {}", packet.main_hand);
-                log!(debug, "\tEnable text filtering: {}", packet.enable_text_filtering);
-                log!(debug, "\tAllow server listings: {}", packet.allow_server_listings);
+                log!(verbose, "Client information for {}:", self.get_name());
+                log!(verbose, "\tLocale: {}", packet.locale);
+                log!(verbose, "\tView distance: {}", packet.view_distance);
+                log!(verbose, "\tChat mode: {}", packet.chat_mode);
+                log!(verbose, "\tChat colors: {}", packet.chat_colors);
+                log!(verbose, "\tDisplayed skin parts:");
+                log!(verbose, "\t\tCape: {}", packet.displayed_skin_parts.cape_enabled);
+                log!(verbose, "\t\tJacket: {}", packet.displayed_skin_parts.jacket_enabled);
+                log!(verbose, "\t\tLeft sleeve: {}", packet.displayed_skin_parts.left_sleeve_enabled);
+                log!(verbose, "\t\tRight sleeve: {}", packet.displayed_skin_parts.right_sleeve_enabled);
+                log!(verbose, "\t\tLeft pants: {}", packet.displayed_skin_parts.left_pants_enabled);
+                log!(verbose, "\t\tRight pants: {}", packet.displayed_skin_parts.right_pants_enabled);
+                log!(verbose, "\t\tHat: {}", packet.displayed_skin_parts.hat_enabled);
+                log!(verbose, "\tMain hand: {}", packet.main_hand);
+                log!(verbose, "\tEnable text filtering: {}", packet.enable_text_filtering);
+                log!(verbose, "\tAllow server listings: {}", packet.allow_server_listings);
 
                 // Send server brand to client
                 let server_brand = CONFIG.status.version_prefix.clone()
@@ -458,7 +458,7 @@ impl Connection {
             },
             0x02 => {
                 let packet = ConfigurationServerboundPluginMessage::read(&mut reader)?;
-                log!(debug, "Recieved plugin message at '{}' ({} bytes): {:x?}", packet.channel, packet.data.len(), packet.data);
+                log!(verbose, "Recieved plugin message at '{}' ({} bytes): {:x?}", packet.channel, packet.data.len(), packet.data);
 
                 if packet.channel.to_string() == "minecraft:brand" {
                     let brand = String::from_utf8(packet.data).unwrap();
